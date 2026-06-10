@@ -10,47 +10,560 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
     <style>
-        /* (Same as Cafe Boss menu style, but adapted for Digity) */
-        /* For brevity, I'll include a compact but complete version */
         :root {
-            --amber:        #e8921a; --amber-lt:     #f5b445; --amber-glow:   rgba(232,146,26,0.15);
-            --espresso:     #120b05; --card-bg:      rgba(26,14,6,0.97); --card-border:  rgba(232,146,26,0.16);
-            --glass:        rgba(20,11,4,0.90); --glass-border: rgba(232,146,26,0.22);
-            --text:         #f2e2c8; --muted:        #9a8068; --radius:       18px; --shadow:       0 8px 32px rgba(0,0,0,0.65);
+            --amber: #e8921a; --amber-lt: #f5b445; --amber-glow: rgba(232,146,26,0.15);
+            --espresso: #120b05; --card-bg: rgba(26,14,6,0.97); --card-border: rgba(232,146,26,0.16);
+            --glass: rgba(20,11,4,0.90); --glass-border: rgba(232,146,26,0.22);
+            --text: #f2e2c8; --muted: #9a8068; --radius: 18px; --shadow: 0 8px 32px rgba(0,0,0,0.65);
+            --shadow-hover: 0 18px 50px rgba(0,0,0,0.85), 0 0 24px rgba(232,146,26,0.1);
         }
         body.light-mode {
-            --espresso:     #f8f2e8; --card-bg:      rgba(255,252,246,1); --card-border:  rgba(190,95,20,0.13);
-            --glass:        rgba(248,242,232,0.96); --glass-border: rgba(190,95,20,0.18);
-            --text:         #1c0f05; --muted:        #7a5c3a; --shadow:       0 4px 22px rgba(0,0,0,0.07);
+            --espresso: #f8f2e8; --card-bg: rgba(255,252,246,1); --card-border: rgba(190,95,20,0.13);
+            --glass: rgba(248,242,232,0.96); --glass-border: rgba(190,95,20,0.18);
+            --text: #1c0f05; --muted: #7a5c3a; --shadow: 0 4px 22px rgba(0,0,0,0.07);
+            --shadow-hover: 0 12px 40px rgba(0,0,0,0.13), 0 0 16px rgba(190,95,20,0.09);
         }
         * { margin:0; padding:0; box-sizing:border-box; }
         body {
             font-family:'Plus Jakarta Sans', system-ui, sans-serif;
             background: var(--espresso); color: var(--text);
-            overflow-x: hidden; min-height: 100vh; -webkit-tap-highlight-color: transparent;
+            overflow-x: hidden; min-height: 100vh;
+            -webkit-tap-highlight-color: transparent;
             transition: background 0.4s ease, color 0.4s ease;
         }
-        /* ... full style similar to earlier menu.html ... */
-        /* I will now output the complete JavaScript logic that includes review prompt and social links */
+        h1,h2,h3 { font-family:'Cormorant Garamond', serif; }
+        .cloche-overlay {
+            position:fixed; inset:0; background:#0d0703; z-index:1000;
+            display:flex; align-items:center; justify-content:center; flex-direction:column;
+            animation:clocheExit 0.7s ease 2s forwards;
+        }
+        @keyframes clocheExit { to { opacity:0; visibility:hidden; } }
+        .cloche-scene { display:flex; flex-direction:column; align-items:center; }
+        .cloche-dome {
+            width:130px; height:94px; border-radius:65px 65px 0 0;
+            background:linear-gradient(145deg, #d4ccc4 0%, #969088 40%, #5a5450 100%);
+            position:relative; box-shadow:0 8px 28px rgba(0,0,0,0.6);
+        }
+        .cloche-dome::before {
+            content:''; position:absolute; top:18px; left:18px;
+            width:44px; height:22px; background:rgba(255,255,255,0.14);
+            border-radius:50%; transform:rotate(-18deg);
+        }
+        .cloche-dome::after {
+            content:''; position:absolute; top:-14px; left:50%;
+            transform:translateX(-50%); width:18px; height:18px;
+            border-radius:50%; background:linear-gradient(145deg, #d0c8c0, #909090);
+            box-shadow:0 2px 8px rgba(0,0,0,0.4);
+        }
+        .cloche-plate {
+            width:154px; height:11px; border-radius:50%;
+            background:linear-gradient(180deg, #e0d8d0 0%, #b0a898 100%);
+            box-shadow:0 4px 14px rgba(0,0,0,0.5); margin-top:-1px;
+        }
+        .cloche-steam {
+            display:flex; gap:10px; position:absolute; top:-34px;
+            left:50%; transform:translateX(-50%); width:70px; justify-content:center;
+        }
+        .steam-line {
+            width:3px; border-radius:3px; background:rgba(255,255,255,0.25);
+            animation:steamRise 1.6s ease-in-out infinite;
+        }
+        .steam-line:nth-child(1){ height:18px; animation-delay:0s; }
+        .steam-line:nth-child(2){ height:24px; animation-delay:0.25s; }
+        .steam-line:nth-child(3){ height:15px; animation-delay:0.5s; }
+        @keyframes steamRise {
+            0%,100% { transform:translateY(0) scaleX(1); opacity:0; }
+            30% { opacity:0.8; }
+            80% { transform:translateY(-18px) scaleX(1.3); opacity:0; }
+        }
+        .cloche-tagline {
+            font-family:'Cormorant Garamond', serif;
+            font-size:1.05rem; letter-spacing:5px; text-transform:uppercase;
+            color:rgba(232,146,26,0.55); margin-top:2.4rem;
+        }
+        .menu-content {
+            max-width:900px; margin:0 auto; padding:1.5rem 1.5rem 130px;
+            position:relative; z-index:2; opacity:0;
+            animation:contentReveal 0.9s ease 2.1s forwards;
+        }
+        @keyframes contentReveal { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+        .top-bar { display:flex; justify-content:flex-end; gap:0.5rem; margin-bottom:2rem; }
+        .top-btn {
+            padding:0.48rem 1.05rem; border-radius:40px; border:1px solid var(--glass-border);
+            background:var(--glass); color:var(--text); cursor:pointer;
+            font-size:0.78rem; font-weight:600; font-family:'Plus Jakarta Sans', sans-serif;
+            transition:border-color 0.25s, color 0.25s, transform 0.25s;
+        }
+        .top-btn:hover { border-color:var(--amber); color:var(--amber); transform:translateY(-2px); }
+        .top-btn.listening { background:var(--amber); color:#fff; animation:micPulse 0.8s ease-in-out infinite; }
+        @keyframes micPulse {
+            0%,100% { transform:scale(1); box-shadow:0 0 0 0 rgba(232,146,26,0.7); }
+            50% { transform:scale(1.08); box-shadow:0 0 0 8px rgba(232,146,26,0); }
+        }
+        header.menu-header { text-align:center; padding:2.2rem 0 2.8rem; margin-bottom:1.8rem; }
+        .header-eyebrow {
+            display:inline-flex; align-items:center; gap:0.7rem;
+            font-size:0.7rem; font-weight:700; letter-spacing:4.5px;
+            text-transform:uppercase; color:var(--amber); opacity:0.75; margin-bottom:0.9rem;
+        }
+        .header-eyebrow::before, .header-eyebrow::after {
+            content:''; width:28px; height:1px; background:linear-gradient(90deg, transparent, var(--amber));
+        }
+        .header-eyebrow::after { transform:scaleX(-1); }
+        header.menu-header h1 {
+            font-size:clamp(3rem, 8vw, 5.2rem); font-weight:700; line-height:1.08;
+            background:linear-gradient(160deg, #f7d9a0 0%, var(--amber-lt) 35%, var(--amber) 65%, #b85a10 100%);
+            -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+            margin-bottom:0.9rem;
+        }
+        header.menu-header p { font-size:0.92rem; color:var(--muted); max-width:420px; margin:0 auto; line-height:1.65; }
+        .header-rule { display:flex; align-items:center; gap:0.8rem; margin:1.8rem auto 0; width:fit-content; }
+        .header-rule span { width:60px; height:1px; background:linear-gradient(90deg, transparent, var(--amber)); }
+        .header-rule span:last-child { transform:scaleX(-1); }
+        .header-rule em { font-style:normal; font-size:0.9rem; color:var(--amber); opacity:0.55; }
+        .search-container { position:sticky; top:10px; z-index:40; margin-bottom:1.2rem; }
+        .search-wrap { position:relative; }
+        .search-icon { position:absolute; left:1.15rem; top:50%; transform:translateY(-50%); font-size:0.95rem; opacity:0.38; pointer-events:none; }
+        .search-bar {
+            width:100%; padding:0.92rem 1.4rem 0.92rem 2.9rem; border-radius:40px;
+            border:1px solid var(--glass-border); background:var(--glass);
+            backdrop-filter:blur(20px); color:var(--text); font-size:0.93rem;
+            font-family:'Plus Jakarta Sans', sans-serif; box-shadow:var(--shadow);
+        }
+        .search-bar::placeholder { color:var(--muted); }
+        .search-bar:focus { outline:none; border-color:var(--amber); box-shadow:0 0 0 4px var(--amber-glow), var(--shadow); }
+        .category-tabs {
+            display:flex; gap:0.45rem; overflow-x:auto; scrollbar-width:none;
+            position:sticky; top:62px; z-index:39; background:var(--espresso);
+            padding:10px 0; margin-bottom:2rem; transition:background 0.4s;
+        }
+        .category-tabs::-webkit-scrollbar { display:none; }
+        .cat-btn {
+            flex-shrink:0; padding:0.52rem 1.25rem; border-radius:30px;
+            border:1px solid var(--glass-border); background:transparent;
+            color:var(--muted); cursor:pointer; font-size:0.83rem; font-weight:600;
+            font-family:'Plus Jakarta Sans', sans-serif; transition:all 0.28s cubic-bezier(0.4,0,0.2,1);
+            white-space:nowrap;
+        }
+        .cat-btn:hover { color:var(--text); border-color:rgba(232,146,26,0.35); }
+        .cat-btn.active { background:var(--amber); color:#fff; border-color:var(--amber); box-shadow:0 4px 18px rgba(232,146,26,0.32); transform:scale(1.05); }
+        .category-section { margin-bottom:0.5rem; }
+        .section-heading {
+            display:flex; align-items:center; gap:1rem;
+            font-size:1.95rem; font-weight:600; margin:2.8rem 0 1.4rem; color:var(--text);
+        }
+        .section-heading::after { content:''; flex:1; height:1px; background:linear-gradient(90deg, var(--glass-border), transparent); }
+        .menu-item {
+            display:flex; gap:1.4rem; align-items:center;
+            background:var(--card-bg); border:1px solid var(--card-border);
+            border-radius:var(--radius); padding:1.35rem; margin-bottom:0.95rem;
+            position:relative; overflow:hidden; box-shadow:var(--shadow);
+            transition:transform 0.32s cubic-bezier(0.4,0,0.2,1), box-shadow 0.32s ease, border-color 0.32s ease;
+            opacity:0; cursor:default;
+        }
+        .menu-item::before {
+            content:''; position:absolute; inset:0; border-radius:var(--radius);
+            background:linear-gradient(105deg, transparent 30%, rgba(232,146,26,0.04) 50%, transparent 70%);
+            transform:translateX(-100%); transition:transform 0.5s ease;
+        }
+        .menu-item:hover { transform:translateY(-5px); box-shadow:var(--shadow-hover); border-color:rgba(232,146,26,0.38); }
+        .menu-item:hover::before { transform:translateX(100%); }
+        .img-wrap { width:106px; height:106px; border-radius:12px; overflow:hidden; flex-shrink:0; background:rgba(232,146,26,0.05); }
+        .menu-item-img { width:100%; height:100%; object-fit:cover; transition:transform 0.45s cubic-bezier(0.4,0,0.2,1); }
+        .menu-item:hover .menu-item-img { transform:scale(1.1); }
+        .item-details { flex:1; min-width:0; }
+        .item-name { font-family:'Cormorant Garamond', serif; font-size:1.32rem; font-weight:600; color:var(--text); display:flex; align-items:flex-start; flex-wrap:wrap; gap:0.45rem; line-height:1.3; margin-bottom:0.2rem; }
+        .item-desc { font-size:0.81rem; color:var(--muted); line-height:1.56; margin-top:0.2rem; }
+        .item-price { font-weight:800; font-size:1.25rem; color:var(--amber); margin-top:0.55rem; font-family:'Plus Jakarta Sans', sans-serif; }
+        .badge { padding:2px 8px; border-radius:6px; font-size:0.6rem; font-weight:700; text-transform:uppercase; letter-spacing:0.9px; font-family:'Plus Jakarta Sans', sans-serif; flex-shrink:0; line-height:1.6; }
+        .badge-featured { background:rgba(241,196,15,0.1); color:#f1c40f; border:1px solid rgba(241,196,15,0.28); }
+        .badge-new      { background:rgba(46,204,113,0.1); color:#2ecc71; border:1px solid rgba(46,204,113,0.24); }
+        .badge-discount { background:rgba(231,76,60,0.1); color:#e74c3c; border:1px solid rgba(231,76,60,0.24); }
+        .variant-pills { display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.5rem; }
+        .variant-pill { padding:0.4rem 1rem; border-radius:20px; border:1px solid var(--glass-border); background:transparent; color:var(--text); cursor:pointer; font-size:0.85rem; transition:all 0.3s; font-weight:500; }
+        .variant-pill.selected { background:var(--amber); color:#000; border-color:var(--amber); }
+        .qty-controls { display:flex; align-items:center; gap:0.5rem; margin-left:auto; flex-shrink:0; }
+        .qty-btn { width:36px; height:36px; border-radius:50%; border:1.5px solid var(--glass-border); background:transparent; color:var(--text); cursor:pointer; font-size:1.15rem; display:flex; align-items:center; justify-content:center; transition:all 0.22s cubic-bezier(0.4,0,0.2,1); position:relative; overflow:hidden; user-select:none; }
+        .qty-btn:hover { border-color:var(--amber); color:var(--amber); }
+        .qty-btn:active { transform:scale(0.82); }
+        .qty-btn.has-qty { border-color:rgba(232,146,26,0.55); color:var(--amber); background:rgba(232,146,26,0.09); }
+        .qty-num { font-weight:700; font-size:0.98rem; min-width:22px; text-align:center; transition:transform 0.18s cubic-bezier(0.4,0,0.2,1); }
+        .qty-num.bump { animation:numBump 0.28s cubic-bezier(0.4,0,0.2,1); }
+        @keyframes numBump { 0%,100%{transform:scale(1)} 50%{transform:scale(1.45)} }
+        .floating-cart { position:fixed; bottom:30px; right:30px; width:62px; height:62px; border-radius:50%; background:var(--amber); color:#fff; border:none; font-size:1.48rem; cursor:pointer; z-index:49; box-shadow:0 8px 28px rgba(232,146,26,0.42); display:flex; align-items:center; justify-content:center; transition:transform 0.3s cubic-bezier(0.4,0,0.2,1), box-shadow 0.3s ease; }
+        .floating-cart:hover { transform:scale(1.1); box-shadow:0 14px 38px rgba(232,146,26,0.55); }
+        .floating-cart.pulse { animation:cartBounce 0.55s cubic-bezier(0.4,0,0.2,1); }
+        @keyframes cartBounce { 0%,100%{transform:scale(1)} 30%{transform:scale(1.28)} 60%{transform:scale(0.92)} 80%{transform:scale(1.06)} }
+        .waiter-btn { position:fixed; bottom:30px; left:30px; width:62px; height:62px; border-radius:50%; background:linear-gradient(145deg, #c0392b, #96281b); color:#fff; border:none; font-size:1.35rem; cursor:pointer; z-index:48; box-shadow:0 8px 24px rgba(192,57,43,0.4); display:flex; align-items:center; justify-content:center; transition:transform 0.28s ease, box-shadow 0.28s ease; }
+        .waiter-btn:hover { transform:scale(1.1); box-shadow:0 14px 34px rgba(192,57,43,0.5); }
+        .waiter-btn.ring { animation:waiterRing 0.6s ease; }
+        @keyframes waiterRing { 0%,100%{transform:rotate(0deg)} 20%{transform:rotate(-18deg)} 50%{transform:rotate(18deg)} 75%{transform:rotate(-10deg)} }
+        .cart-badge { position:absolute; top:-6px; right:-6px; background:#e74c3c; color:#fff; width:22px; height:22px; border-radius:50%; font-size:0.72rem; font-weight:700; display:none; align-items:center; justify-content:center; border:2.5px solid var(--espresso); }
+        .cart-badge.pop { animation:badgePop 0.35s cubic-bezier(0.4,0,0.2,1); }
+        @keyframes badgePop { 0%,100%{transform:scale(1)} 50%{transform:scale(1.5)} }
+        .cart-panel { position:fixed; bottom:0; left:0; right:0; background:var(--card-bg); border-radius:26px 26px 0 0; transform:translateY(100%); visibility:hidden; opacity:0; transition:transform 0.46s cubic-bezier(0.4,0,0.2,1), opacity 0.4s ease; z-index:50; max-height:88vh; overflow-y:auto; box-shadow:0 -22px 60px rgba(0,0,0,0.55); border-top:1px solid var(--card-border); }
+        .cart-panel.open { transform:translateY(0); visibility:visible; opacity:1; }
+        .cart-handle { width:38px; height:4px; background:var(--glass-border); border-radius:2px; margin:14px auto 0; }
+        .cart-inner { padding:1.5rem 2rem 2rem; }
+        .cart-header { display:flex; align-items:baseline; justify-content:space-between; margin-bottom:1.4rem; }
+        .cart-title { font-size:2.1rem; font-weight:600; color:var(--text); }
+        .cart-subtitle { font-size:0.85rem; color:var(--muted); font-family:'Plus Jakarta Sans',sans-serif; font-weight:500; }
+        .cart-item-row { display:flex; justify-content:space-between; align-items:center; padding:0.85rem 0; border-bottom:1px solid var(--glass-border); gap:1rem; }
+        .cart-item-name  { flex:1; font-size:0.9rem; font-weight:500; }
+        .cart-item-price { font-size:0.9rem; font-weight:700; color:var(--amber); flex-shrink:0; }
+        .cart-total-row { display:flex; justify-content:space-between; align-items:baseline; margin:1.3rem 0 1.6rem; }
+        .cart-total-label { font-size:0.85rem; color:var(--muted); font-weight:500; }
+        .cart-total-val   { font-size:1.65rem; font-weight:800; color:var(--amber); }
+        .cart-input { width:100%; padding:0.88rem 1.15rem; border-radius:12px; border:1px solid var(--glass-border); background:rgba(255,255,255,0.03); color:var(--text); font-size:0.92rem; font-family:'Plus Jakarta Sans', sans-serif; outline:none; transition:border-color 0.3s, box-shadow 0.3s; margin-bottom:0.75rem; }
+        .cart-input::placeholder { color:var(--muted); }
+        .cart-input:focus { border-color:var(--amber); box-shadow:0 0 0 3px var(--amber-glow); }
+        .btn-order { width:100%; padding:1.1rem; border-radius:13px; background:var(--amber); color:#fff; border:none; font-weight:800; font-size:1rem; font-family:'Plus Jakarta Sans', sans-serif; cursor:pointer; margin-bottom:0.75rem; box-shadow:0 6px 22px rgba(232,146,26,0.38); transition:transform 0.22s ease, box-shadow 0.22s ease; letter-spacing:0.3px; }
+        .btn-order:hover { transform:translateY(-2px); box-shadow:0 10px 30px rgba(232,146,26,0.48); }
+        .btn-order:active { transform:translateY(0) scale(0.98); }
+        .btn-close-cart { width:100%; padding:0.88rem; background:transparent; border:1px solid var(--glass-border); color:var(--muted); border-radius:13px; cursor:pointer; font-weight:600; font-size:0.88rem; font-family:'Plus Jakarta Sans', sans-serif; transition:border-color 0.2s, color 0.2s; }
+        .btn-close-cart:hover { border-color:var(--amber); color:var(--text); }
+        .toast-container { position:fixed; top:18px; left:50%; transform:translateX(-50%); z-index:9999; display:flex; flex-direction:column; gap:8px; pointer-events:none; min-width:220px; align-items:center; }
+        .toast { background:var(--card-bg); color:var(--text); padding:10px 22px; border-radius:30px; border:1px solid var(--amber); box-shadow:0 8px 28px rgba(0,0,0,0.35), 0 0 14px rgba(232,146,26,0.1); font-weight:600; font-size:0.84rem; white-space:nowrap; animation:toastIn 0.4s cubic-bezier(0.4,0,0.2,1), toastOut 0.4s ease 2.5s forwards; }
+        @keyframes toastIn { from{transform:translateY(-28px) scale(0.88);opacity:0} to{transform:translateY(0) scale(1);opacity:1} }
+        @keyframes toastOut { to{opacity:0;transform:translateY(-20px) scale(0.9)} }
+        .success-overlay { position:fixed; inset:0; background:rgba(10,5,1,0.97); z-index:60; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:0.8rem; opacity:0; pointer-events:none; transition:opacity 0.45s ease; }
+        .success-overlay.show { opacity:1; pointer-events:auto; }
+        .success-icon { font-size:4.5rem; animation:iconPop 0.55s cubic-bezier(0.175,0.885,0.32,1.275) 0.1s both; }
+        @keyframes iconPop { from { transform:scale(0) rotate(-35deg); opacity:0; } to { transform:scale(1) rotate(0deg); opacity:1; } }
+        .success-title { font-family:'Cormorant Garamond', serif; font-size:2.1rem; color:var(--text); font-weight:600; animation:fadeUp 0.5s ease 0.35s both; }
+        .success-sub { font-size:0.88rem; color:var(--muted); text-align:center; line-height:1.6; animation:fadeUp 0.5s ease 0.5s both; }
+        @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:none} }
+        .empty-state { text-align:center; padding:4rem 2rem; color:var(--muted); }
+        .empty-icon { font-size:2.8rem; margin-bottom:0.8rem; opacity:0.35; }
+        @media (max-width:640px) {
+            .menu-content { padding:1.2rem 1.2rem 130px; }
+            .menu-item { gap:0.9rem !important; padding:1rem !important; border-radius:14px !important; }
+            .img-wrap  { width:80px !important; height:80px !important; }
+            .item-name { font-size:1.12rem !important; }
+            .item-desc { font-size:0.77rem !important; line-height:1.4 !important; display:-webkit-box !important; -webkit-line-clamp:2 !important; -webkit-box-orient:vertical !important; overflow:hidden !important; }
+            .item-price { font-size:1.1rem !important; margin-top:0.3rem !important; }
+            .qty-controls { flex-direction:column !important; gap:0.3rem !important; margin-left:auto !important; }
+            .qty-btn { width:30px !important; height:30px !important; font-size:1rem !important; }
+            .qty-num { font-size:0.9rem !important; min-width:18px !important; }
+            header.menu-header h1 { font-size:2.6rem !important; }
+            .floating-cart, .waiter-btn { width:54px !important; height:54px !important; font-size:1.3rem !important; bottom:20px !important; }
+            .floating-cart { right:18px !important; }
+            .waiter-btn { left:18px !important; }
+            .search-container { top:0 !important; }
+            .category-tabs { top:56px !important; }
+            .cart-inner { padding:1.2rem 1.4rem 1.6rem !important; }
+        }
     </style>
 </head>
 <body>
     <div class="toast-container" id="toastContainer"></div>
-    <div class="cloche-overlay" id="clocheOverlay">...</div>
-    <div class="menu-content">
-        <!-- Header, search, categories, menu items, cart, etc. -->
+    <div class="cloche-overlay" id="clocheOverlay">
+        <div class="cloche-scene">
+            <div class="cloche-steam"><div class="steam-line"></div><div class="steam-line"></div><div class="steam-line"></div></div>
+            <div class="cloche-dome"></div>
+            <div class="cloche-plate"></div>
+        </div>
+        <p class="cloche-tagline">Your Table is Ready</p>
     </div>
+
+    <div class="menu-content">
+        <div class="top-bar">
+            <button class="top-btn" id="themeToggle">🌙 Dark</button>
+            <select class="top-btn" id="langToggle"><option value="en">English</option><option value="hi">हिन्दी</option></select>
+            <button class="top-btn" id="shareBtn">📤 Share</button>
+            <button class="top-btn" id="voiceOrderBtn" title="Order by voice">🎤</button>
+        </div>
+        <div id="busyBanner" style="display:none; background:#c0392b; color:#fff; text-align:center; padding:10px; position:fixed; top:0; left:0; right:0; z-index:100;">Heavy rush! Wait ~<span id="waitTimeDisplay"></span> mins</div>
+        <div id="menuVisible">
+            <header class="menu-header">
+                <p class="header-eyebrow">Est. 2024 &nbsp;·&nbsp; Welcome</p>
+                <h1 id="cafeNameDisplay">Loading…</h1>
+                <p id="cafeDesc"></p>
+                <div class="header-rule"><span></span><em>✦</em><span></span></div>
+            </header>
+            <div class="search-container"><div class="search-wrap"><span class="search-icon">🔍</span><input type="text" class="search-bar" id="searchBar" placeholder="Search dishes, drinks…"></div></div>
+            <div class="category-tabs" id="categoryTabs"></div>
+            <div id="menuSections"></div>
+        </div>
+    </div>
+
+    <button class="floating-cart" id="floatingCart">🛒<span class="cart-badge" id="cartBadge">0</span></button>
+    <button class="waiter-btn" id="waiterBtn">👋</button>
+
+    <div class="cart-panel" id="cartPanel">
+        <div class="cart-handle"></div>
+        <div class="cart-inner">
+            <div class="cart-header"><span class="cart-title">Your Order</span><span class="cart-subtitle" id="cartCountLabel"></span></div>
+            <div id="cartItemsList"></div>
+            <div class="cart-total-row"><span class="cart-total-label">Total</span><span class="cart-total-val">₹<span id="cartTotal">0</span></span></div>
+            <input class="cart-input" id="tableNumber" placeholder="Table Number *">
+            <input class="cart-input" id="customerName" placeholder="Your name (optional)">
+            <button class="btn-order" id="placeOrderBtn">Place Order →</button>
+            <button class="btn-close-cart" id="closeCartBtn">Close</button>
+        </div>
+    </div>
+
+    <div class="success-overlay" id="successOverlay">
+        <div class="success-icon">✅</div>
+        <div class="success-title">Order Placed!</div>
+        <p class="success-sub" id="successMsg">We're preparing your order…</p>
+    </div>
+
     <script>
         const SUPABASE_URL = 'https://dsbqhorzcbcrjivrgauk.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRzYnFob3J6Y2JjcmppdnJnYXVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMTQxMjAsImV4cCI6MjA5NjU5MDEyMH0.mSv--VVeaKzYSUGenYT5uYuIv85A4C0A0eyqT-DWv2o';
-        const BASE_URL = window.location.origin + '/menu.html?id=';
+        const BASE_URL = 'https://zakiewillplay.github.io/Alburaaq/menu.html?id=';
         const GEMINI_URL = 'YOUR_SUPABASE_EDGE_FUNCTION_URL/gemini';
         const TELEGRAM_NOTIFY_URL = 'YOUR_SUPABASE_EDGE_FUNCTION_URL/telegram-notify';
         const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        // ... (full menu logic, with placeOrder now including Google review prompt)
-        async function placeOrder() {
-            // ... (validate cart, table)
-            // After successful order insert:
+        const urlParams = new URLSearchParams(window.location.search);
+        const cafeId = urlParams.get('id');
+        const tableParam = urlParams.get('table');
+
+        let lang = 'en';
+        const T = {
+            en: { search:'Search dishes, drinks…', table:'Table Number *', name:'Your name (optional)', place:'Place Order →', orderPlaced:'Order Placed!', waiting:'We\'re preparing your order…', noItems:'Nothing found.', waiterCall:'Waiter is on their way! 👋', cartEmpty:'Your cart is empty', tableReq:'Please enter your table number' }
+        };
+        const tl = k => T[lang]?.[k] || k;
+
+        let menuItems = [], cart = [], activeCategory = 'All', cafeData;
+        try { cart = JSON.parse(localStorage.getItem('cafe_cart') || '[]'); } catch(e) { cart = []; }
+
+        function showToast(msg) {
+            const el = Object.assign(document.createElement('div'), { className:'toast', textContent:msg });
+            document.getElementById('toastContainer').appendChild(el);
+            setTimeout(() => el.remove(), 3000);
+        }
+
+        document.getElementById('themeToggle').addEventListener('click', () => {
+            document.body.classList.toggle('light-mode');
+            document.getElementById('themeToggle').textContent = document.body.classList.contains('light-mode') ? '🌙 Dark' : '☀️ Light';
+        });
+        document.getElementById('shareBtn').addEventListener('click', async () => {
+            const url = location.href;
+            if (navigator.share) { try { await navigator.share({ title:document.title, url }); return; } catch(e) {} }
+            try { await navigator.clipboard.writeText(url); showToast('Link copied!'); } catch(e) { showToast('Copy: ' + url); }
+        });
+
+        async function loadMenu() {
+            if (!cafeId) return document.getElementById('cafeNameDisplay').textContent = 'Invalid Menu Link';
+            const { data: cafe } = await _sb.from('cafes').select('*').eq('id', cafeId).maybeSingle();
+            cafeData = cafe;
+            document.getElementById('cafeNameDisplay').textContent = cafe?.cafe_name || 'Srinagar Roastery';
+            document.getElementById('cafeDesc').textContent = cafe?.description || '';
+            if (cafe?.busy_mode) {
+                document.getElementById('busyBanner').style.display = 'block';
+                document.getElementById('waitTimeDisplay').textContent = cafe.wait_time || 10;
+            }
+            const { data: items } = await _sb.from('menu_items').select('*').eq('cafe_id', cafeId).eq('available', true).order('category');
+            menuItems = items?.length ? items : [];
+            if (tableParam) {
+                const t = document.getElementById('tableNumber');
+                t.value = tableParam; t.readOnly = true; t.style.opacity = '0.6';
+            }
+            renderMenu(true);
+            updateCartUI();
+            setTimeout(subscribeToPush, 3000);
+        }
+
+        function renderMenu(initial = false) {
+            const search = document.getElementById('searchBar').value.toLowerCase();
+            const filtered = menuItems.filter(i => {
+                const hit = (i.name||'').toLowerCase().includes(search) || (i.description||'').toLowerCase().includes(search);
+                return hit && (activeCategory === 'All' || i.category === activeCategory);
+            });
+            const cats = ['All', ...new Set(menuItems.map(i => i.category).filter(Boolean))].sort();
+            document.getElementById('categoryTabs').innerHTML = cats.map(c => `<button class="cat-btn${c===activeCategory?' active':''}" data-cat="${c}">${c}</button>`).join('');
+            document.querySelectorAll('.cat-btn').forEach(b => b.addEventListener('click', function() { activeCategory = this.dataset.cat; renderMenu(); }));
+
+            let html = '';
+            if (!filtered.length) {
+                html = `<div class="empty-state"><div class="empty-icon">🍽️</div><p>${tl('noItems')}</p></div>`;
+            } else {
+                const catSet = activeCategory === 'All' ? [...new Set(filtered.map(i => i.category))].sort() : [activeCategory];
+                catSet.forEach(cat => {
+                    const catItems = filtered.filter(i => i.category === cat);
+                    if (!catItems.length) return;
+                    html += `<div class="category-section"><h3 class="section-heading">${cat}</h3>`;
+                    catItems.forEach(item => {
+                        const tags = (item.tags||'').split(',').map(t=>t.trim());
+                        let badges = '';
+                        if (tags.includes('featured')) badges += '<span class="badge badge-featured">✦ Special</span> ';
+                        if (tags.includes('new')) badges += '<span class="badge badge-new">New</span> ';
+                        if (tags.includes('discount')) badges += '<span class="badge badge-discount">Sale</span> ';
+                        if (item.allergens) {
+                            item.allergens.forEach(a => {
+                                if (a === 'gluten') badges += '<span class="badge badge-red" style="background:rgba(231,76,60,0.15);color:#e74c3c;border:1px solid rgba(231,76,60,0.3);">🌾 Gluten</span> ';
+                                else if (a === 'dairy') badges += '<span class="badge badge-red" style="background:rgba(231,76,60,0.15);color:#e74c3c;border:1px solid rgba(231,76,60,0.3);">🥛 Dairy</span> ';
+                                else if (a === 'nuts') badges += '<span class="badge badge-red" style="background:rgba(231,76,60,0.15);color:#e74c3c;border:1px solid rgba(231,76,60,0.3);">🥜 Nuts</span> ';
+                            });
+                        }
+                        if (item.dietary) {
+                            item.dietary.forEach(d => {
+                                if (d === 'vegan') badges += '<span class="badge" style="background:rgba(46,204,113,0.15);color:#2ecc71;border:1px solid rgba(46,204,113,0.3);">🌱 Vegan</span> ';
+                                else if (d === 'jain') badges += '<span class="badge" style="background:rgba(46,204,113,0.15);color:#2ecc71;border:1px solid rgba(46,204,113,0.3);">🕉️ Jain</span> ';
+                            });
+                        }
+
+                        const hasVariants = item.description?.startsWith('VAR::');
+                        let variants = [], priceDisplay = item.price;
+                        let itemDescText = item.description || '';
+                        if (hasVariants) {
+                            const vStr = item.description.replace('VAR::','');
+                            variants = vStr.split('|').map(v => { const [n,p] = v.split('='); return { name:n, price:parseFloat(p) }; });
+                            if (variants.length) priceDisplay = variants[0].price;
+                            itemDescText = '';
+                        }
+
+                        let variantHTML = '';
+                        if (variants.length) {
+                            variantHTML = `<div class="variant-pills">${variants.map((v,i) => `<button class="variant-pill${i===0?' selected':''}" data-price="${v.price}" data-vname="${v.name}">${v.name} ₹${v.price}</button>`).join('')}</div>`;
+                        }
+
+                        const imgHtml = (item.image_url||'').trim() ? `<div class="img-wrap"><img src="${item.image_url}" class="menu-item-img" loading="lazy" alt="${item.name}"></div>` : '';
+                        const cartItem = cart.find(c => c.id == item.id);
+                        const qty = cartItem?.qty || 0;
+
+                        html += `
+                        <div class="menu-item" data-id="${item.id}" data-name="${item.name}" data-base-price="${priceDisplay}">
+                            ${imgHtml}
+                            <div class="item-details">
+                                <div class="item-name">${item.name}</div>
+                                ${badges ? `<div style="margin:5px 0 2px;">${badges}</div>` : ''}
+                                ${itemDescText && !hasVariants ? `<div class="item-desc">${itemDescText}</div>` : ''}
+                                ${variantHTML}
+                                <div class="item-price">₹<span class="active-price">${priceDisplay}</span></div>
+                            </div>
+                            <div class="qty-controls">
+                                <button class="qty-btn qty-plus${qty>0?' has-qty':''}">+</button>
+                                <span class="qty-num">${qty}</span>
+                                <button class="qty-btn qty-minus${qty>0?' has-qty':''}">−</button>
+                            </div>
+                        </div>`;
+                    });
+                    html += '</div>';
+                });
+            }
+            document.getElementById('menuSections').innerHTML = html;
+            attachItemEvents();
+            if (initial || search === '') {
+                gsap.fromTo('.menu-item', { opacity:0, y:28, scale:0.96 }, { opacity:1, y:0, scale:1, stagger:0.05, duration:0.5, ease:'power3.out', clearProps:'scale' });
+            } else {
+                document.querySelectorAll('.menu-item').forEach(el => { el.style.opacity = 1; el.style.transform = 'none'; });
+            }
+        }
+
+        let searchTimer;
+        document.getElementById('searchBar').addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => renderMenu(false), 260); });
+
+        function attachItemEvents() {
+            document.querySelectorAll('.variant-pill').forEach(p => p.addEventListener('click', function() {
+                const itemEl = this.closest('.menu-item');
+                itemEl.querySelectorAll('.variant-pill').forEach(b => b.classList.remove('selected'));
+                this.classList.add('selected');
+                itemEl.querySelector('.active-price').textContent = parseFloat(this.dataset.price).toFixed(2);
+                itemEl.dataset.basePrice = this.dataset.price;
+            }));
+
+            document.querySelectorAll('.qty-plus').forEach(btn => btn.addEventListener('click', function() {
+                const itemEl = this.closest('.menu-item');
+                const id = itemEl.dataset.id;
+                const name = itemEl.dataset.name;
+                const price = parseFloat(itemEl.dataset.basePrice);
+                const selectedPill = itemEl.querySelector('.variant-pill.selected');
+                const variant = selectedPill ? selectedPill.dataset.vname : null;
+                const cartKey = variant ? `${id}__${variant}` : id;
+                const existing = cart.find(c => c.cartKey === cartKey);
+                if (existing) existing.qty++;
+                else cart.push({ cartKey, id, name, price, qty:1, variant });
+                updateCartUI();
+                const numEl = itemEl.querySelector('.qty-num');
+                numEl.textContent = existing ? existing.qty : 1;
+                const fb = document.getElementById('floatingCart');
+                fb.classList.remove('pulse'); void fb.offsetWidth; fb.classList.add('pulse');
+            }));
+            document.querySelectorAll('.qty-minus').forEach(btn => btn.addEventListener('click', function() {
+                const itemEl = this.closest('.menu-item');
+                const id = itemEl.dataset.id;
+                const selectedPill = itemEl.querySelector('.variant-pill.selected');
+                const variant = selectedPill ? selectedPill.dataset.vname : null;
+                const cartKey = variant ? `${id}__${variant}` : id;
+                const existing = cart.find(c => c.cartKey === cartKey);
+                if (existing) {
+                    existing.qty--;
+                    if (existing.qty <= 0) cart = cart.filter(c => c.cartKey !== cartKey);
+                }
+                updateCartUI();
+                const numEl = itemEl.querySelector('.qty-num');
+                const current = cart.find(c => c.cartKey === cartKey);
+                numEl.textContent = current ? current.qty : 0;
+            }));
+        }
+
+        function updateCartUI() {
+            localStorage.setItem('cafe_cart', JSON.stringify(cart));
+            const totalQty = cart.reduce((s,c) => s + c.qty, 0);
+            const totalPrice = cart.reduce((s,c) => s + c.price*c.qty, 0);
+            const badge = document.getElementById('cartBadge');
+            if (totalQty > 0) { badge.textContent = totalQty; badge.style.display = 'flex'; badge.classList.remove('pop'); void badge.offsetWidth; badge.classList.add('pop'); }
+            else { badge.style.display = 'none'; }
+            document.getElementById('cartTotal').textContent = totalPrice.toFixed(2);
+            document.getElementById('cartCountLabel').textContent = totalQty ? `${totalQty} item${totalQty>1?'s':''}` : '';
+            document.getElementById('cartItemsList').innerHTML = cart.length ? cart.map(c => `<div class="cart-item-row"><span class="cart-item-name">${c.name}${c.variant?' ('+c.variant+')':''}&nbsp;&nbsp;×${c.qty}</span><span class="cart-item-price">₹${(c.price*c.qty).toFixed(2)}</span></div>`).join('') : '<p style="color:var(--muted);font-size:0.9rem;padding:1rem 0;">No items yet.</p>';
+        }
+
+        document.getElementById('floatingCart').addEventListener('click', () => { if (!cart.length) return showToast(tl('cartEmpty')); document.getElementById('cartPanel').classList.add('open'); });
+        document.getElementById('closeCartBtn').addEventListener('click', () => document.getElementById('cartPanel').classList.remove('open'));
+
+        document.getElementById('waiterBtn').addEventListener('click', async function() {
+            let table = document.getElementById('tableNumber').value.trim() || tableParam;
+            if (!table) { table = prompt(tl('tableReq')); if (!table) return; }
+            const name = prompt(tl('name')) || 'Guest';
+            const { error } = await _sb.from('orders').insert({
+                cafe_id: cafeId,
+                customer_name: name,
+                table_number: table,
+                items: [{ name: '🚨 Waiter Call', price: 0, qty: 1 }],
+                total: 0,
+                status: 'new'
+            });
+            if (error) showToast('Waiter call failed: ' + error.message);
+            else { showToast(tl('waiterCall')); this.classList.remove('ring'); void this.offsetWidth; this.classList.add('ring'); }
+        });
+
+        document.getElementById('placeOrderBtn').addEventListener('click', async () => {
+            if (!cart.length) return showToast(tl('cartEmpty'));
+            const table = document.getElementById('tableNumber').value.trim() || tableParam || '';
+            if (!table) return showToast(tl('tableReq'));
+            const orderItems = cart.map(c => ({ name: c.name + (c.variant?' ('+c.variant+')':''), price: c.price, qty: c.qty }));
+            const total = cart.reduce((s,c) => s + c.price*c.qty, 0);
+            const { data: order, error } = await _sb.from('orders').insert({
+                cafe_id: cafeId,
+                customer_name: document.getElementById('customerName').value.trim() || 'Guest',
+                table_number: table,
+                items: orderItems,
+                total: total,
+                status: 'new'
+            }).select().maybeSingle();
+            if (error) { showToast('Order failed: ' + error.message); return; }
+
+            cart = [];
+            updateCartUI();
+            document.getElementById('cartPanel').classList.remove('open');
+            const overlay = document.getElementById('successOverlay');
+            overlay.classList.add('show');
+            for (let i = 0; i < 16; i++) {
+                const dot = document.createElement('div'); dot.className = 'confetti-dot';
+                const ang = (i/16)*360, r = 60 + Math.random()*80;
+                dot.style.setProperty('--fly', `translate(${Math.cos(ang*Math.PI/180)*r}px, ${Math.sin(ang*Math.PI/180)*r}px)`);
+                dot.style.left = '50%'; dot.style.top = '40%';
+                dot.style.background = ['#e8921a','#f5b445','#fff','#e74c3c'][i%4];
+                dot.style.animationDelay = (Math.random()*0.3) + 's';
+                overlay.appendChild(dot);
+            }
+            setTimeout(() => { overlay.classList.remove('show'); overlay.querySelectorAll('.confetti-dot').forEach(d => d.remove()); }, 3600);
+
+            // Google review prompt
             if (cafeData.google_review_url) {
                 setTimeout(() => {
                     if (confirm('Enjoyed your experience? Leave us a Google review!')) {
@@ -58,6 +571,7 @@
                     }
                 }, 1500);
             }
+
             // Telegram notification
             if (cafeData.telegram_chat_id) {
                 fetch(TELEGRAM_NOTIFY_URL, {
@@ -66,15 +580,85 @@
                     body: JSON.stringify({
                         chat_id: cafeData.telegram_chat_id,
                         cafe_name: cafeData.cafe_name,
-                        table: tableNumber,
-                        customer: customerName,
+                        table: table,
+                        customer: document.getElementById('customerName').value.trim() || 'Guest',
                         items: orderItems,
                         total: total
                     })
-                });
+                }).catch(e => console.error('Telegram notify failed', e));
             }
+        });
+
+        // Voice order (same as before)
+        let recognition = null;
+        const voiceBtn = document.getElementById('voiceOrderBtn');
+        voiceBtn.addEventListener('click', () => {
+            if (recognition) {
+                recognition.stop(); recognition = null;
+                voiceBtn.classList.remove('listening'); voiceBtn.textContent = '🎤';
+                return;
+            }
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) { showToast('Voice input not supported on this device'); return; }
+            recognition = new SpeechRecognition();
+            recognition.lang = 'hi-IN';
+            recognition.interimResults = false;
+            recognition.onstart = () => { voiceBtn.classList.add('listening'); voiceBtn.textContent = '🔴'; };
+            recognition.onresult = async (event) => {
+                const transcript = event.results[0][0].transcript;
+                showToast('Heard: ' + transcript);
+                try {
+                    const res = await fetch(GEMINI_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+                        body: JSON.stringify({ promptExtra: `Extract ordered items from this text: "${transcript}". Return JSON array of {name, qty}.` })
+                    });
+                    const data = await res.json();
+                    const items = JSON.parse(data.result);
+                    items.forEach(item => {
+                        const menuItem = menuItems.find(i => i.name.toLowerCase().includes(item.name.toLowerCase()));
+                        if (menuItem) {
+                            const existing = cart.find(c => c.id == menuItem.id);
+                            if (existing) existing.qty += item.qty || 1;
+                            else cart.push({ cartKey: menuItem.id, id: menuItem.id, name: menuItem.name, price: menuItem.price, qty: item.qty || 1 });
+                        }
+                    });
+                    updateCartUI();
+                    renderMenu(false);
+                } catch (e) { showToast('Could not understand the order. Please try again.'); }
+            };
+            recognition.onerror = (event) => { showToast('Voice error: ' + event.error); voiceBtn.classList.remove('listening'); voiceBtn.textContent = '🎤'; recognition = null; };
+            recognition.onend = () => { voiceBtn.classList.remove('listening'); voiceBtn.textContent = '🎤'; recognition = null; };
+            recognition.start();
+        });
+
+        async function subscribeToPush() {
+            if (!('serviceWorkerRegistration' in navigator)) return;
+            const permission = await Notification.requestPermission();
+            if (permission !== 'granted') return;
+            const registration = await navigator.serviceWorker.ready;
+            const subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array('BOJNjVMti7_75Jw9dJOeFCi_GuXbJJXPo4gE2MuO7fmm0Vn8l5Z1FWJ4WqhAxudqFt4RVhFFyU5cy3NDD1jhgo')
+            });
+            await _sb.from('push_subscriptions').insert({
+                cafe_id: cafeId,
+                endpoint: subscription.endpoint,
+                p256dh: btoa(String.fromCharCode.apply(null, new Uint8Array(subscription.getKey('p256dh')))),
+                auth: btoa(String.fromCharCode.apply(null, new Uint8Array(subscription.getKey('auth'))))
+            });
+            showToast('Notifications enabled!');
         }
-        // ... rest
+        function urlBase64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+            for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+            return outputArray;
+        }
+
+        loadMenu();
     </script>
 </body>
 </html>
