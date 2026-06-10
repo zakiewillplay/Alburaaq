@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Digity Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        :root {
+            --amber: #e8921a; --amber-lt: #f5b445; --amber-glow: rgba(232,146,26,0.15);
+            --espresso: #120b05; --card-bg: rgba(26,14,6,0.97); --card-border: rgba(232,146,26,0.16);
+            --glass: rgba(20,11,4,0.90); --glass-border: rgba(232,146,26,0.22);
+            --text: #f2e2c8; --muted: #9a8068; --radius: 18px; --shadow: 0 8px 32px rgba(0,0,0,0.65);
+        }
+        body.light-mode {
+            --espresso: #f8f2e8; --card-bg: rgba(255,252,246,1); --card-border: rgba(190,95,20,0.13);
+            --glass: rgba(248,242,232,0.96); --glass-border: rgba(190,95,20,0.18);
+            --text: #1c0f05; --muted: #7a5c3a; --shadow: 0 4px 22px rgba(0,0,0,0.07);
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        html,body { width:100%; overflow-x:hidden; }
+        body {
+            font-family:'Plus Jakarta Sans', sans-serif;
+            background: var(--espresso); color: var(--text);
+            transition: background 0.4s, color 0.4s; min-height:100vh;
+        }
+        h1,h2,h3 { font-family:'Cormorant Garamond', serif; }
+        .container { max-width:1200px; margin:0 auto; padding:1.5rem 1.2rem 100px; position:relative; z-index:2; }
+        .header-row { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; margin-bottom:2rem; }
+        .logo { font-size:2rem; font-weight:700; color:var(--amber); font-family:'Cormorant Garamond', serif; }
+        .header-actions { display:flex; gap:0.5rem; flex-wrap:wrap; }
+        .header-actions button, .header-actions select {
+            padding:0.55rem 1rem; border-radius:30px; border:1px solid var(--glass-border);
+            background:var(--glass); color:var(--text); cursor:pointer; font-size:0.82rem; font-weight:600;
+            font-family:'Plus Jakarta Sans',sans-serif; transition:0.2s;
+        }
+        .header-actions button:hover, .header-actions select:hover { border-color:var(--amber); color:var(--amber); }
+        .card {
+            background:var(--card-bg); border:1px solid var(--card-border);
+            border-radius:var(--radius); padding:1.5rem; margin-bottom:1.2rem; box-shadow:var(--shadow);
+        }
+        .card-title {
+            font-size:1.4rem; font-weight:600; color:var(--amber); margin-bottom:1rem;
+            display:flex; justify-content:space-between; align-items:center; cursor:pointer;
+        }
+        .collapsed .card-body { display:none; }
+        .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:1rem; margin-bottom:1.5rem; }
+        .stat-box { text-align:center; padding:1rem; border-radius:14px; background:var(--card-bg); border:1px solid var(--card-border); }
+        .stat-num { font-size:2.2rem; font-weight:800; color:var(--amber); }
+        .btn { padding:0.6rem 1.2rem; border-radius:30px; border:1px solid var(--glass-border); background:var(--glass); color:var(--text); cursor:pointer; font-weight:600; font-size:0.82rem; font-family:'Plus Jakarta Sans',sans-serif; transition:0.2s; }
+        .btn:hover { border-color:var(--amber); color:var(--amber); }
+        .btn-primary { background:var(--amber); color:#fff; border:none; }
+        .btn-primary:hover { background:var(--amber-lt); }
+        input, select, textarea {
+            width:100%; padding:0.65rem 0.9rem; border-radius:10px;
+            border:1px solid var(--glass-border); background:var(--glass);
+            color:var(--text); font-family:'Plus Jakarta Sans',sans-serif; font-size:0.85rem; margin-bottom:0.8rem; transition:0.2s;
+        }
+        input:focus, select:focus, textarea:focus { outline:none; border-color:var(--amber); }
+        .tabs { display:flex; gap:0.3rem; margin-bottom:1rem; }
+        .tab { flex:1; padding:0.5rem; text-align:center; border-radius:8px; background:transparent; border:1px solid var(--glass-border); color:var(--muted); cursor:pointer; font-weight:600; font-size:0.82rem; transition:0.2s; }
+        .tab.active { background:var(--amber); color:#fff; border-color:var(--amber); }
+        .qr-box img { background:#fff; padding:0.5rem; border-radius:12px; margin-top:1rem; max-width:200px; }
+        .toast-container { position:fixed; top:20px; right:20px; z-index:999; display:flex; flex-direction:column; gap:10px; }
+        .toast { background:var(--amber); color:#fff; padding:0.7rem 1.2rem; border-radius:30px; font-weight:600; font-size:0.85rem; animation: slideIn 0.3s ease; }
+        @keyframes slideIn { from{transform:translateX(100%);opacity:0} to{transform:none;opacity:1} }
+        @keyframes spin { to { transform:rotate(360deg); } }
+        /* News mobile-friendly */
+        .news-item { background:var(--glass); border:1px solid var(--glass-border); border-radius:14px; padding:0.8rem; margin-bottom:0.5rem; }
+        .news-item h4 { font-size:1rem; color:var(--amber); margin-bottom:0.2rem; }
+        .news-item p { font-size:0.82rem; color:var(--muted); }
+        @media (max-width:600px) {
+            .header-row { flex-direction:column; align-items:flex-start; }
+            .container { padding:1rem 0.8rem 90px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="toast-container" id="toastContainer"></div>
+    <div class="container">
+        <div class="header-row">
+            <div class="logo">☕ Digity <span style="font-size:0.7rem;color:var(--muted);font-family:'Plus Jakarta Sans',sans-serif;">Dashboard</span></div>
+            <div class="header-actions">
+                <button id="themeToggle">🌙</button>
+                <button id="unmuteBtn">🔊</button>
+                <button id="testAlertBtn">📢</button>
+                <button id="livePreviewBtn">👁️</button>
+                <button id="logoutBtn" style="color:#e74c3c;">↪</button>
+            </div>
+        </div>
+
+        <div class="stats">
+            <div class="stat-box"><div class="stat-num" id="statViews">0</div><small class="muted">Menu Views</small></div>
+            <div class="stat-box"><div class="stat-num" id="statItems">0</div><small class="muted">Active Items</small></div>
+            <div class="stat-box"><div class="stat-num" id="statOrders">0</div><small class="muted">Total Orders</small></div>
+        </div>
+
+        <!-- Orders Card -->
+        <div class="card">
+            <div class="card-title" onclick="this.parentElement.classList.toggle('collapsed')">📋 Orders <span>▼</span></div>
+            <div class="card-body">
+                <div style="display:flex; gap:0.5rem; margin-bottom:1rem;">
+                    <input id="orderSearch" placeholder="Search...">
+                    <button id="exportCsvBtn" class="btn">📥 CSV</button>
+                </div>
+                <div class="tabs">
+                    <div class="tab active" data-tab="new">New</div>
+                    <div class="tab" data-tab="accepted">Preparing</div>
+                    <div class="tab" data-tab="completed">Completed</div>
+                </div>
+                <div id="ordersList"></div>
+            </div>
+        </div>
+
+        <!-- QR Code Generator Card -->
+        <div class="card collapsed">
+            <div class="card-title" onclick="this.parentElement.classList.toggle('collapsed')">📱 QR Code & Links <span>▼</span></div>
+            <div class="card-body" style="text-align: center;">
+                <button id="generateQrBtn" class="btn-primary">Generate My Cafe QR Code</button>
+                <div id="qrDisplay" class="qr-box" style="display:flex; justify-content:center;"></div>
+                <p id="qrUrl" style="word-break:break-all; font-size:0.85rem; margin: 1rem 0; color:var(--amber);"></p>
+                <button id="copyQrLink" style="display:none; margin: 0 auto;" class="btn">📋 Copy Menu Link</button>
+                <hr style="border-color:var(--border); margin: 1.5rem 0;">
+                <h4>🪑 Table-Specific QR Codes</h4>
+                <p style="font-size:0.85rem; color:var(--muted); margin-bottom:1rem;">Generate QR codes for individual tables. Orders will automatically include the table number.</p>
+                <div style="display:flex; gap:0.8rem; margin-bottom:1rem;">
+                    <select id="tableNumberSelect" style="flex:1;">
+                        <option value="">Select table...</option>
+                    </select>
+                    <button id="generateTableQrBtn" class="btn-primary" style="flex:1;">Generate Table QR</button>
+                </div>
+                <div id="tableQrDisplay" class="qr-box" style="display:flex; justify-content:center; margin-top:1rem;"></div>
+                <p id="tableQrUrl" style="word-break:break-all; font-size:0.85rem; margin: 0.5rem 0; color:var(--amber);"></p>
+                <button id="copyTableQrLink" style="display:none; margin: 0 auto;" class="btn">📋 Copy Table Link</button>
+                <button id="downloadAllTableQrsBtn" class="btn" style="margin-top:1rem;">📥 Download All Table QR Codes (PDF)</button>
+            </div>
+        </div>
+
+        <!-- AI Scanner -->
+        <div class="card collapsed">
+            <div class="card-title" onclick="this.parentElement.classList.toggle('collapsed')">🤖 AI Menu Scanner <span style="font-size:0.7rem;background:var(--amber);color:#fff;padding:2px 8px;border-radius:10px;">BETA</span></div>
+            <div class="card-body">
+                <p style="font-size:0.85rem;color:var(--muted);margin-bottom:1rem;">Upload multiple photos – AI extracts items with prices & variants.</p>
+                <div style="display:flex; gap:0.8rem; margin-bottom:1rem;">
+                    <button id="takePhotoBtn" class="btn-primary">📸 Camera</button>
+                    <button id="galleryUploadBtn" class="btn">🖼️ Gallery</button>
+                </div>
+                <input type="file" id="aiMenuImageFile" accept="image/*" capture="environment" multiple style="display:none;">
+                <div id="aiPreviews" style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:1rem;"></div>
+                <button id="scanMenuBtn" class="btn-primary" style="display:none;">🔍 Scan All</button>
+                <div id="aiScannerStatus" style="margin-top:1rem; font-weight:600;"></div>
+            </div>
+        </div>
+
+        <!-- Add/Edit Item -->
+        <div class="card" id="addItemCard">
+            <div class="card-title" onclick="this.parentElement.classList.toggle('collapsed')">➕ Add Item <span>▼</span></div>
+            <div class="card-body">
+                <input type="hidden" id="editItemId">
+                <div style="display:flex; gap:0.8rem;">
+                    <input id="itemName" placeholder="Item name *">
+                    <input id="itemPrice" type="number" placeholder="Price ₹" style="width:120px;">
+                </div>
+                <select id="itemCategorySelect"><option>Uncategorized</option></select>
+                <input id="itemCategoryInput" placeholder="New category name" style="display:none;">
+                <input id="itemDiscount" placeholder="Discount (e.g. 10% off)">
+                <textarea id="itemDesc" rows="2" placeholder="Short description"></textarea>
+                <div style="display:flex; gap:0.8rem; flex-wrap:wrap; margin-bottom:0.5rem;">
+                    <label><input type="checkbox" id="tagFeatured"> 🔥 Chef's Special</label>
+                    <label><input type="checkbox" id="tagStandard"> ✅ Standard</label>
+                    <label><input type="checkbox" id="tagBest"> 🏆 Best of Cafe</label>
+                    <label><input type="checkbox" id="tagSelling"> 📈 Best Seller</label>
+                </div>
+                <div style="display:flex; gap:0.8rem; flex-wrap:wrap; margin-bottom:0.8rem;">
+                    <label><input type="checkbox" class="allergenCheck" value="gluten"> 🌾 Gluten</label>
+                    <label><input type="checkbox" class="allergenCheck" value="dairy"> 🥛 Dairy</label>
+                    <label><input type="checkbox" class="allergenCheck" value="nuts"> 🥜 Nuts</label>
+                    <label><input type="checkbox" class="dietaryCheck" value="vegan"> 🌱 Vegan</label>
+                    <label><input type="checkbox" class="dietaryCheck" value="jain"> 🕉️ Jain</label>
+                </div>
+                <div style="display:flex; align-items:center; gap:1rem; margin-bottom:1rem;">
+                    <label for="itemImageFile" class="btn">📷 Choose Photo</label>
+                    <input type="file" id="itemImageFile" accept="image/*" style="display:none;">
+                    <button id="autoImageBtn" class="btn">🖼️ Auto Image</button>
+                    <img id="itemImagePreview" style="max-width:80px; max-height:80px; border-radius:8px; display:none;">
+                </div>
+                <div style="margin-bottom:1rem;">
+                    <small>Sizes / Variants</small>
+                    <div id="variantsContainer"></div>
+                    <button id="addVariantBtn" class="btn" style="margin-top:0.3rem;">+ Add Size</button>
+                </div>
+                <div style="display:flex; gap:0.8rem;">
+                    <button id="submitItemBtn" class="btn-primary" style="flex:1;">Save Item</button>
+                    <button id="saveAndNextBtn" class="btn" style="flex:1;">Save & Next</button>
+                    <button id="cancelEditBtn" class="btn" style="display:none;">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Menu Items List -->
+        <div class="card">
+            <div class="card-title" onclick="this.parentElement.classList.toggle('collapsed')">📋 Live Menu <span>▼</span></div>
+            <div class="card-body">
+                <input id="menuSearch" placeholder="Search items..." style="margin-bottom:1rem;">
+                <div id="menuItemsList"></div>
+            </div>
+        </div>
+
+        <!-- Settings -->
+        <div class="card collapsed">
+            <div class="card-title" onclick="this.parentElement.classList.toggle('collapsed')">⚙️ Settings <span>▼</span></div>
+            <div class="card-body">
+                <input id="setCafeName" placeholder="Cafe Name">
+                <input id="setWhatsapp" placeholder="WhatsApp Number">
+                <textarea id="setDesc" rows="2" placeholder="Short Description"></textarea>
+                <div style="display:flex; gap:1rem; margin-bottom:1rem;">
+                    <div><input type="color" id="setPrimary" value="#e8921a"> Primary</div>
+                    <div><input type="color" id="setAccent" value="#2F3E46"> Accent</div>
+                </div>
+                <input id="setGooglePlaceId" placeholder="Google Place ID">
+                <input id="setTelegramChatId" placeholder="Telegram Chat ID (for order alerts)">
+                <label>Cafe ID (share with staff)</label>
+                <div style="display:flex; gap:0.5rem; margin-bottom:1rem;">
+                    <input id="cafeIdDisplay" readonly value="" style="flex:1; background:var(--glass);">
+                    <button id="copyCafeIdBtn" class="btn" style="width:auto;">📋 Copy</button>
+                </div>
+                <input id="setInstagram" placeholder="Instagram URL">
+                <input id="setFacebook" placeholder="Facebook URL">
+                <input id="setGoogleReview" placeholder="Google Review Link">
+                <div style="display:flex; gap:1rem; align-items:center; margin-bottom:1rem;">
+                    <label>Cafe Logo</label>
+                    <button id="uploadLogoBtn" class="btn">📷 Upload</button>
+                    <button id="autoLogoBtn" class="btn">🖼️ Auto-fetch</button>
+                    <img id="logoPreview" style="max-width:60px; max-height:60px; border-radius:50%; display:none;">
+                </div>
+                <button id="saveSettingsBtn" class="btn-primary" style="width:100%;">Save Settings</button>
+            </div>
+        </div>
+
+        <!-- News / Micro-blog -->
+        <div class="card collapsed">
+            <div class="card-title" onclick="this.parentElement.classList.toggle('collapsed')">📰 Cafe News <span>▼</span></div>
+            <div class="card-body">
+                <div style="display:flex; flex-direction:column; gap:0.5rem; margin-bottom:1rem;">
+                    <input id="newsTitle" placeholder="Title">
+                    <textarea id="newsBody" placeholder="Write something..." rows="2"></textarea>
+                    <button id="addNewsBtn" class="btn-primary">Post</button>
+                </div>
+                <div id="newsList"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://dsbqhorzcbcrjivrgauk.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRzYnFob3J6Y2JjcmppdnJnYXVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMTQxMjAsImV4cCI6MjA5NjU5MDEyMH0.mSv--VVeaKzYSUGenYT5uYuIv85A4C0A0eyqT-DWv2o';
+        const BASE_URL = window.location.origin + '/menu.html?id=';
+        const GEMINI_URL = 'YOUR_SUPABASE_EDGE_FUNCTION_URL/gemini'; // Replace with your edge function URL after deployment
+        const AUTO_IMG_URL = 'YOUR_SUPABASE_EDGE_FUNCTION_URL/auto-image';
+        const IMG_UPLOAD_URL = 'YOUR_SUPABASE_EDGE_FUNCTION_URL/image-upload';
+        const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        function toast(msg, err=false) {
+            const el = document.createElement('div');
+            el.className = 'toast';
+            el.textContent = msg;
+            document.getElementById('toastContainer').appendChild(el);
+            setTimeout(() => el.remove(), 3000);
+        }
+
+        function applyTheme() {
+            const saved = localStorage.getItem('digity_theme');
+            if(saved === 'dark' || (!saved && matchMedia('(prefers-color-scheme:dark)').matches)) {
+                document.body.classList.remove('light-mode');
+                document.getElementById('themeToggle').textContent = '☀️';
+            } else {
+                document.body.classList.add('light-mode');
+                document.getElementById('themeToggle').textContent = '🌙';
+            }
+        }
+        document.getElementById('themeToggle').addEventListener('click', () => {
+            document.body.classList.toggle('light-mode');
+            localStorage.setItem('digity_theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
+            applyTheme();
+        });
+        applyTheme();
+
+        let audioCtx;
+        let audioReady = localStorage.getItem('digity_unmuted') === 'true';
+        const unmuteBtn = document.getElementById('unmuteBtn');
+        if(audioReady) unmuteBtn.style.display = 'none';
+        unmuteBtn.addEventListener('click', () => {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+            audioReady = true;
+            localStorage.setItem('digity_unmuted', 'true');
+            unmuteBtn.style.display = 'none';
+            toast('Sound enabled');
+        });
+        function beep() {
+            if(!audioReady) return;
+            if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.frequency.value = 1000;
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.15);
+        }
+
+        document.getElementById('testAlertBtn').addEventListener('click', () => { beep(); toast('Beep!'); });
+        document.getElementById('logoutBtn').addEventListener('click', () => _sb.auth.signOut().then(() => location.href='index.html'));
+        document.getElementById('livePreviewBtn').addEventListener('click', () => {
+            if(cafeData?.id) window.open(BASE_URL + cafeData.id, '_blank');
+            else toast('Cafe not ready');
+        });
+
+        let cafeData, allOrders=[], allItems=[], activeOrderTab='new', realtimeChannel;
+        let selectedFiles = [];
+
+        async function init() {
+            const { data: { user } } = await _sb.auth.getUser();
+            if(!user) { location.href='auth.html'; return; }
+            cafeData = (await _sb.from('cafes').select('*').eq('owner_id', user.id).maybeSingle()).data;
+            if (!cafeData) {
+                const { data: newCafe } = await _sb.from('cafes').insert({owner_id:user.id, cafe_name:'My Cafe', trial_ends_at: new Date(Date.now()+30*24*60*60*1000).toISOString()}).select().maybeSingle();
+                cafeData = newCafe;
+            }
+            document.getElementById('setCafeName').value = cafeData.cafe_name||'';
+            document.getElementById('setWhatsapp').value = cafeData.whatsapp||'';
+            document.getElementById('setDesc').value = cafeData.description||'';
+            document.getElementById('setPrimary').value = cafeData.primary_color||'#e8921a';
+            document.getElementById('setAccent').value = cafeData.accent_color||'#2F3E46';
+            document.getElementById('setGooglePlaceId').value = cafeData.google_place_id||'';
+            document.getElementById('setTelegramChatId').value = cafeData.telegram_chat_id||'';
+            document.getElementById('cafeIdDisplay').value = cafeData.id;
+            document.getElementById('setInstagram').value = cafeData.instagram_url||'';
+            document.getElementById('setFacebook').value = cafeData.facebook_url||'';
+            document.getElementById('setGoogleReview').value = cafeData.google_review_url||'';
+            if(cafeData.logo_url) {
+                document.getElementById('logoPreview').src = cafeData.logo_url;
+                document.getElementById('logoPreview').style.display = 'block';
+            }
+            document.getElementById('copyCafeIdBtn').addEventListener('click', () => {
+                navigator.clipboard.writeText(cafeData.id);
+                toast('Cafe ID copied!');
+            });
+            const tableSelect = document.getElementById('tableNumberSelect');
+            for (let i = 1; i <= 20; i++) {
+                const opt = document.createElement('option');
+                opt.value = i; opt.textContent = `Table ${i}`;
+                tableSelect.appendChild(opt);
+            }
+            await Promise.all([loadStats(), loadOrders(), loadItems(), loadNews()]);
+            if(cafeData.id) setupRealtime();
+            createDefaultVariantRow();
+        }
+
+        document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
+            const u = {
+                cafe_name: document.getElementById('setCafeName').value.trim(),
+                whatsapp: document.getElementById('setWhatsapp').value.trim(),
+                description: document.getElementById('setDesc').value.trim(),
+                primary_color: document.getElementById('setPrimary').value,
+                accent_color: document.getElementById('setAccent').value,
+                google_place_id: document.getElementById('setGooglePlaceId').value.trim(),
+                telegram_chat_id: document.getElementById('setTelegramChatId').value.trim(),
+                instagram_url: document.getElementById('setInstagram').value.trim(),
+                facebook_url: document.getElementById('setFacebook').value.trim(),
+                google_review_url: document.getElementById('setGoogleReview').value.trim()
+            };
+            const { error } = await _sb.from('cafes').update(u).eq('id', cafeData.id);
+            if (error) toast('Save failed: ' + error.message, true);
+            else { Object.assign(cafeData, u); toast('Settings saved'); }
+        });
+
+        // Logo upload / auto-fetch
+        document.getElementById('uploadLogoBtn').addEventListener('click', () => {
+            const input = document.createElement('input');
+            input.type = 'file'; input.accept = 'image/*';
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if(!file) return;
+                const form = new FormData(); form.append('image', file);
+                const res = await fetch(IMG_UPLOAD_URL, { method:'POST', headers:{'Authorization':`Bearer ${SUPABASE_ANON_KEY}`}, body:form });
+                const data = await res.json();
+                if(data.url) {
+                    document.getElementById('logoPreview').src = data.url;
+                    document.getElementById('logoPreview').style.display = 'block';
+                    cafeData.logo_url = data.url;
+                    await _sb.from('cafes').update({logo_url: data.url}).eq('id', cafeData.id);
+                    toast('Logo uploaded!');
+                } else toast('Upload failed');
+            };
+            input.click();
+        });
+        document.getElementById('autoLogoBtn').addEventListener('click', async () => {
+            const name = cafeData.cafe_name || 'cafe';
+            const res = await fetch(AUTO_IMG_URL, { method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${SUPABASE_ANON_KEY}`}, body:JSON.stringify({query: name + ' logo'}) });
+            const data = await res.json();
+            if(data.imageUrl) {
+                document.getElementById('logoPreview').src = data.imageUrl;
+                document.getElementById('logoPreview').style.display = 'block';
+                cafeData.logo_url = data.imageUrl;
+                await _sb.from('cafes').update({logo_url: data.imageUrl}).eq('id', cafeData.id);
+                toast('Logo auto-fetched!');
+            } else toast('No image found');
+        });
+
+        // QR Code Generation
+        document.getElementById('generateQrBtn').addEventListener('click', () => {
+            if (!cafeData.id) return toast('Cafe not ready', true);
+            const url = BASE_URL + cafeData.id;
+            document.getElementById('qrDisplay').innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(url)}" width="250" height="250">`;
+            document.getElementById('qrUrl').textContent = url;
+            document.getElementById('copyQrLink').style.display = 'inline-block';
+        });
+        document.getElementById('copyQrLink').addEventListener('click', () => { navigator.clipboard.writeText(document.getElementById('qrUrl').textContent); toast('Link copied!'); });
+        document.getElementById('generateTableQrBtn').addEventListener('click', () => {
+            const table = document.getElementById('tableNumberSelect').value;
+            if (!table) return toast('Select a table number', true);
+            if (!cafeData.id) return toast('Cafe not ready', true);
+            const url = BASE_URL + cafeData.id + '&table=' + table;
+            document.getElementById('tableQrDisplay').innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(url)}" width="250" height="250">`;
+            document.getElementById('tableQrUrl').textContent = url;
+            document.getElementById('copyTableQrLink').style.display = 'inline-block';
+        });
+        document.getElementById('copyTableQrLink').addEventListener('click', () => { navigator.clipboard.writeText(document.getElementById('tableQrUrl').textContent); toast('Table link copied!'); });
+        document.getElementById('downloadAllTableQrsBtn').addEventListener('click', async () => {
+            if (!cafeData.id) return toast('Cafe not ready', true);
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            for (let i = 1; i <= 20; i++) {
+                const url = BASE_URL + cafeData.id + '&table=' + i;
+                const img = document.createElement('img');
+                img.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
+                await new Promise(resolve => { img.onload = resolve; });
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width; canvas.height = img.height;
+                canvas.getContext('2d').drawImage(img, 0, 0);
+                const dataUrl = canvas.toDataURL('image/png');
+                if (i > 1) doc.addPage();
+                doc.setFontSize(16);
+                doc.text(`Table ${i}`, 105, 20, { align: 'center' });
+                doc.addImage(dataUrl, 'PNG', 55, 30, 100, 100);
+            }
+            doc.save(`table_qr_codes_${cafeData.id.slice(0,8)}.pdf`);
+            toast('PDF downloaded!');
+        });
+
+        // Stats / Orders
+        async function loadStats() {
+            const [{count:i},{count:o},{count:v}] = await Promise.all([
+                _sb.from('menu_items').select('*',{count:'exact',head:true}).eq('cafe_id',cafeData.id),
+                _sb.from('orders').select('*',{count:'exact',head:true}).eq('cafe_id',cafeData.id),
+                _sb.from('menu_views_log').select('*',{count:'exact',head:true}).eq('cafe_id',cafeData.id)
+            ]);
+            document.getElementById('statViews').textContent = v||0;
+            document.getElementById('statItems').textContent = i||0;
+            document.getElementById('statOrders').textContent = o||0;
+        }
+        async function loadOrders() {
+            const { data } = await _sb.from('orders').select('*').eq('cafe_id',cafeData.id).order('created_at',{ascending:false});
+            allOrders = data||[];
+            renderOrders();
+        }
+        function renderOrders() {
+            const search = document.getElementById('orderSearch').value.toLowerCase();
+            const filtered = allOrders.filter(o => (activeOrderTab==='new'&&o.status==='new')||(activeOrderTab==='accepted'&&o.status==='accepted')||(activeOrderTab==='completed'&&(o.status=='delivered'||o.status=='completed')))
+                .filter(o => !search || (o.table_number||'').toLowerCase().includes(search) || (o.customer_name||'').toLowerCase().includes(search));
+            const list = document.getElementById('ordersList');
+            list.innerHTML = filtered.length ? filtered.map(o => {
+                const items = typeof o.items === 'string' ? JSON.parse(o.items) : o.items;
+                return `<div class="card" style="padding:0.8rem; margin-bottom:0.5rem;">
+                    <div style="display:flex; justify-content:space-between;">
+                        <strong>Table ${o.table_number||'?'}</strong>
+                        <small>${o.customer_name||'Guest'} | ${new Date(o.created_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</small>
+                    </div>
+                    <div style="font-size:0.8rem; margin:0.3rem 0;">${items.map(i=>i.name+' x'+(i.qty||1)).join(', ')}</div>
+                    <div style="display:flex; justify-content:space-between;">
+                        <strong>₹${o.total}</strong>
+                        <div>${o.status==='new'?`<button class="btn btn-primary" onclick="updateOrder('${o.id}','accepted')">Accept</button>`:''}${o.status==='accepted'?`<button class="btn btn-primary" onclick="updateOrder('${o.id}','delivered')">Deliver</button>`:''}</div>
+                    </div>
+                </div>`;
+            }).join('') : '<p style="color:var(--muted);">No orders</p>';
+        }
+        window.updateOrder = async (id, status) => { await _sb.from('orders').update({status}).eq('id',id); loadOrders(); };
+        document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', function() {
+            document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+            this.classList.add('active');
+            activeOrderTab = this.dataset.tab;
+            renderOrders();
+        }));
+        document.getElementById('orderSearch').addEventListener('input', renderOrders);
+        document.getElementById('exportCsvBtn').addEventListener('click', () => {
+            const csv = 'Date,Table,Customer,Items,Total,Status\n' + allOrders.map(o => `${o.created_at},${o.table_number},${o.customer_name},${(JSON.parse(o.items)||[]).map(i=>i.name).join(';')},${o.total},${o.status}`).join('\n');
+            const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv])); a.download = 'orders.csv'; a.click();
+            toast('CSV exported');
+        });
+
+        function setupRealtime() {
+            if(realtimeChannel) _sb.removeChannel(realtimeChannel);
+            realtimeChannel = _sb.channel('orders-realtime')
+                .on('postgres_changes', {event:'INSERT', schema:'public', table:'orders', filter:`cafe_id=eq.${cafeData.id}`}, payload => {
+                    allOrders.unshift(payload.new); renderOrders(); beep(); loadStats();
+                }).subscribe();
+        }
+
+        // Items (full CRUD as in previous dashboard)
+        async function loadItems() {
+            const { data } = await _sb.from('menu_items').select('*').eq('cafe_id',cafeData.id).order('category');
+            allItems = data||[];
+            renderItems();
+            const cats = [...new Set(allItems.map(i=>i.category).filter(Boolean))].sort();
+            const sel = document.getElementById('itemCategorySelect');
+            sel.innerHTML = '<option value="Uncategorized">Uncategorized</option>' + cats.map(c => `<option value="${c}">${c}</option>`).join('') + '<option value="__new__">+ New</option>';
+        }
+        function renderItems() {
+            const search = document.getElementById('menuSearch').value.toLowerCase();
+            const filtered = allItems.filter(i => !search || i.name.toLowerCase().includes(search) || i.category.toLowerCase().includes(search));
+            document.getElementById('menuItemsList').innerHTML = filtered.map(item => `
+                <div style="display:flex; align-items:center; gap:0.8rem; padding:0.6rem; border-bottom:1px solid var(--glass-border);">
+                    ${item.image_url ? `<img src="${item.image_url}" style="width:45px;height:45px;border-radius:8px;object-fit:cover;">` : ''}
+                    <div style="flex:1;"><strong>${item.name}</strong><br><small>${item.category} | ₹${item.price}</small></div>
+                    <label class="switch"><input type="checkbox" ${item.available?'checked':''} onchange="toggleItem('${item.id}',this.checked)"><span class="slider"></span></label>
+                    <button class="btn" onclick="editItem('${item.id}')">✏️</button>
+                    <button class="btn" onclick="deleteItem('${item.id}')">🗑️</button>
+                </div>`).join('');
+        }
+        window.toggleItem = async (id, checked) => { await _sb.from('menu_items').update({available:checked}).eq('id',id); };
+        window.deleteItem = async (id) => { if(confirm('Delete?')){ await _sb.from('menu_items').delete().eq('id',id); loadItems(); loadStats(); } };
+
+        // Variant row helper
+        function createVariantRow(name='', price='') {
+            const row = document.createElement('div');
+            row.style.display='flex'; row.style.gap='0.5rem'; row.style.marginBottom='0.4rem';
+            row.innerHTML = `<input class="var-name" placeholder="Size" value="${name}" style="flex:1;"><input class="var-price" type="number" placeholder="Price" value="${price}" style="flex:1;"><button type="button" class="btn remove-var" style="padding:0.3rem 0.6rem;">✕</button>`;
+            row.querySelector('.remove-var').addEventListener('click', ()=>row.remove());
+            return row;
+        }
+        function createDefaultVariantRow() {
+            if (document.getElementById('variantsContainer').children.length === 0) {
+                document.getElementById('variantsContainer').appendChild(createVariantRow());
+            }
+        }
+        document.getElementById('addVariantBtn').addEventListener('click', ()=>{
+            document.getElementById('variantsContainer').appendChild(createVariantRow());
+        });
+        createDefaultVariantRow();
+
+        window.editItem = (id) => {
+            const item = allItems.find(i=>i.id===id);
+            if(!item) return;
+            document.getElementById('editItemId').value = item.id;
+            document.getElementById('itemName').value = item.name;
+            document.getElementById('itemPrice').value = item.price;
+            const catSel = document.getElementById('itemCategorySelect');
+            if ([...catSel.options].some(o=>o.value===item.category)) {
+                catSel.value = item.category;
+                document.getElementById('itemCategoryInput').style.display='none';
+            } else {
+                catSel.value = '__new__';
+                document.getElementById('itemCategoryInput').style.display='block';
+                document.getElementById('itemCategoryInput').value = item.category;
+            }
+            document.getElementById('itemDiscount').value = item.discount||'';
+            document.getElementById('itemDesc').value = item.description||'';
+            document.getElementById('tagFeatured').checked = item.featured || (item.tags||'').split(',').includes('featured');
+            document.getElementById('tagStandard').checked = (item.tags||'').split(',').includes('standard');
+            document.getElementById('tagBest').checked = (item.tags||'').split(',').includes('best');
+            document.getElementById('tagSelling').checked = (item.tags||'').split(',').includes('bestselling');
+            document.querySelectorAll('.allergenCheck').forEach(c=>c.checked=(item.allergens||[]).includes(c.value));
+            document.querySelectorAll('.dietaryCheck').forEach(c=>c.checked=(item.dietary||[]).includes(c.value));
+            if(item.image_url){ document.getElementById('itemImagePreview').src=item.image_url; document.getElementById('itemImagePreview').style.display='block'; }
+            else document.getElementById('itemImagePreview').style.display='none';
+            document.getElementById('itemImageFile').value=''; document.getElementById('itemImageFile').dataset.autoUrl='';
+            const varContainer = document.getElementById('variantsContainer');
+            varContainer.innerHTML = '';
+            if (item.description?.startsWith('VAR::')) {
+                const parts = item.description.replace('VAR::','').split('|');
+                parts.forEach(p=>{ const [n,pr]=p.split('='); varContainer.appendChild(createVariantRow(n,pr)); });
+            } else varContainer.appendChild(createVariantRow());
+            document.getElementById('addItemCard').classList.remove('collapsed');
+            document.getElementById('addItemCard').scrollIntoView({behavior:'smooth'});
+            document.getElementById('submitItemBtn').textContent='Update Item';
+            document.getElementById('cancelEditBtn').style.display='inline-block';
+        };
+        document.getElementById('cancelEditBtn').addEventListener('click', resetForm);
+        function resetForm() {
+            document.getElementById('editItemId').value='';
+            document.getElementById('itemName').value=''; document.getElementById('itemPrice').value='';
+            document.getElementById('itemCategorySelect').value='Uncategorized';
+            document.getElementById('itemCategoryInput').style.display='none';
+            document.getElementById('itemDiscount').value=''; document.getElementById('itemDesc').value='';
+            document.querySelectorAll('#tagFeatured,#tagStandard,#tagBest,#tagSelling').forEach(c=>c.checked=false);
+            document.querySelectorAll('.allergenCheck,.dietaryCheck').forEach(c=>c.checked=false);
+            document.getElementById('itemImagePreview').style.display='none';
+            document.getElementById('itemImageFile').value=''; document.getElementById('itemImageFile').dataset.autoUrl='';
+            document.getElementById('variantsContainer').innerHTML='';
+            createDefaultVariantRow();
+            document.getElementById('cancelEditBtn').style.display='none';
+            document.getElementById('submitItemBtn').textContent='Save Item';
+        }
+        async function saveItem(andClear) {
+            const id = document.getElementById('editItemId').value;
+            const name = document.getElementById('itemName').value.trim();
+            if(!name) return toast('Name required');
+            let category = document.getElementById('itemCategorySelect').value;
+            if (category==='__new__') category = document.getElementById('itemCategoryInput').value.trim() || 'Uncategorized';
+            const price = parseFloat(document.getElementById('itemPrice').value)||0;
+            const discount = document.getElementById('itemDiscount').value;
+            const desc = document.getElementById('itemDesc').value;
+            const tags = [];
+            if(document.getElementById('tagFeatured').checked) tags.push('featured');
+            if(document.getElementById('tagStandard').checked) tags.push('standard');
+            if(document.getElementById('tagBest').checked) tags.push('best');
+            if(document.getElementById('tagSelling').checked) tags.push('bestselling');
+            const allergens = Array.from(document.querySelectorAll('.allergenCheck:checked')).map(c=>c.value);
+            const dietary = Array.from(document.querySelectorAll('.dietaryCheck:checked')).map(c=>c.value);
+            const varParts = [];
+            document.querySelectorAll('#variantsContainer > div').forEach(row=>{
+                const vName = row.querySelector('.var-name')?.value.trim();
+                const vPrice = row.querySelector('.var-price')?.value;
+                if(vName && vPrice) varParts.push(vName+'='+vPrice);
+            });
+            const finalDesc = varParts.length ? 'VAR::'+varParts.join('|') : desc;
+            let imageUrl = document.getElementById('itemImageFile').dataset.autoUrl || '';
+            const file = document.getElementById('itemImageFile').files[0];
+            if(file) {
+                const form = new FormData(); form.append('image',file);
+                const res = await fetch(IMG_UPLOAD_URL, { method:'POST', headers:{'Authorization':`Bearer ${SUPABASE_ANON_KEY}`}, body:form });
+                const data = await res.json();
+                if(data.url) imageUrl = data.url;
+            }
+            const itemData = { name, price, category, discount, description:finalDesc, featured:tags.includes('featured'), tags:tags.join(',')||null, allergens, dietary, image_url:imageUrl||null };
+            if(id) {
+                await _sb.from('menu_items').update(itemData).eq('id',id);
+                toast('Updated');
+            } else {
+                await _sb.from('menu_items').insert({...itemData, cafe_id:cafeData.id});
+                toast('Added');
+            }
+            loadItems(); loadStats();
+            resetForm();
+            if(andClear) { document.getElementById('itemName').value=''; document.getElementById('itemPrice').value=''; }
+        }
+        document.getElementById('submitItemBtn').addEventListener('click', ()=>saveItem(false));
+        document.getElementById('saveAndNextBtn').addEventListener('click', ()=>saveItem(true));
+
+        // News
+        async function loadNews() {
+            const { data } = await _sb.from('news_posts').select('*').eq('cafe_id', cafeData.id).order('created_at', {ascending:false});
+            const newsList = document.getElementById('newsList');
+            newsList.innerHTML = data.length ? data.map(p => `
+                <div class="news-item">
+                    <h4>${p.title}</h4>
+                    <p>${p.body}</p>
+                    <small style="color:var(--muted)">${new Date(p.created_at).toLocaleDateString()}</small>
+                </div>
+            `).join('') : '<p style="color:var(--muted);">No news yet.</p>';
+        }
+        document.getElementById('addNewsBtn').addEventListener('click', async () => {
+            const title = document.getElementById('newsTitle').value.trim();
+            const body = document.getElementById('newsBody').value.trim();
+            if(!title||!body) return toast('Fill title and body');
+            const { error } = await _sb.from('news_posts').insert({cafe_id: cafeData.id, title, body});
+            if(error) return toast('Failed: '+error.message, true);
+            document.getElementById('newsTitle').value = '';
+            document.getElementById('newsBody').value = '';
+            loadNews();
+            toast('News posted!');
+        });
+
+        init();
+    </script>
+</body>
+</html>
