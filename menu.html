@@ -235,7 +235,6 @@
         @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:none} }
         .empty-state { text-align:center; padding:4rem 2rem; color:var(--muted); }
         .empty-icon { font-size:2.8rem; margin-bottom:0.8rem; opacity:0.35; }
-
         /* Fixed news ticker */
         .news-ticker {
             position: fixed;
@@ -260,7 +259,6 @@
             text-overflow: ellipsis;
         }
         .menu-content { padding-bottom: 60px !important; }
-
         @media (max-width:640px) {
             .menu-content { padding:1.2rem 1.2rem 100px; }
             .menu-item { gap:0.9rem !important; padding:1rem !important; border-radius:14px !important; }
@@ -335,7 +333,7 @@
         <p class="success-sub" id="successMsg">We're preparing your order…</p>
     </div>
 
-    <!-- Fixed news ticker (replaces old news section) -->
+    <!-- Fixed news ticker -->
     <div id="newsTicker" class="news-ticker" style="display:none;">
         <i>📰</i>
         <span id="newsTickerText"></span>
@@ -345,8 +343,8 @@
         const SUPABASE_URL = 'https://dsbqhorzcbcrjivrgauk.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRzYnFob3J6Y2JjcmppdnJnYXVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMTQxMjAsImV4cCI6MjA5NjU5MDEyMH0.mSv--VVeaKzYSUGenYT5uYuIv85A4C0A0eyqT-DWv2o';
         const BASE_URL = 'https://zakiewillplay.github.io/Alburaaq/menu.html?id=';
-        const GEMINI_URL = 'YOUR_SUPABASE_EDGE_FUNCTION_URL/gemini';
-        const TELEGRAM_NOTIFY_URL = 'YOUR_SUPABASE_EDGE_FUNCTION_URL/telegram-notify';
+        const GEMINI_URL = 'https://dsbqhorzcbcrjivrgauk.supabase.co/functions/v1/gemini';
+        const TELEGRAM_NOTIFY_URL = 'https://dsbqhorzcbcrjivrgauk.supabase.co/functions/v1/Telegram-notify';
         const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         const urlParams = new URLSearchParams(window.location.search);
         const cafeId = urlParams.get('id');
@@ -395,7 +393,7 @@
             }
             renderMenu(true);
             updateCartUI();
-            loadNews();   // <-- news loaded here
+            loadNews();
             setTimeout(subscribeToPush, 3000);
         }
 
@@ -663,7 +661,7 @@
             recognition.start();
         });
 
-        // News loader (fixed ticker)
+        // News loader
         async function loadNews() {
             if (!cafeId) return;
             const { data, error } = await _sb.from('news_posts')
