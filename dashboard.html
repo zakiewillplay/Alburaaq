@@ -265,6 +265,9 @@
         const SUPABASE_URL = 'https://dsbqhorzcbcrjivrgauk.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRzYnFob3J6Y2JjcmppdnJnYXVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMTQxMjAsImV4cCI6MjA5NjU5MDEyMH0.mSv--VVeaKzYSUGenYT5uYuIv85A4C0A0eyqT-DWv2o';
         const BASE_URL = 'https://zakiewillplay.github.io/Alburaaq/menu.html?id=';
+        const GEMINI_URL = 'https://dsbqhorzcbcrjivrgauk.supabase.co/functions/v1/gemini';
+        const AUTO_IMG_URL = 'https://dsbqhorzcbcrjivrgauk.supabase.co/functions/v1/auto-image';
+        const IMG_UPLOAD_URL = 'https://dsbqhorzcbcrjivrgauk.supabase.co/functions/v1/image-upload';
         const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         function toast(msg, isError = false) {
@@ -398,17 +401,37 @@
             else { Object.assign(cafeData, u); toast('Settings saved!'); }
         });
 
-        // Logo upload placeholder
+        // Logo upload
         document.getElementById('uploadLogoBtn').addEventListener('click', () => {
             const input = document.createElement('input'); input.type='file'; input.accept='image/*';
             input.onchange = async (e) => {
                 const file = e.target.files[0];
                 if(!file) return;
-                toast('Logo upload will work after you deploy the image-upload edge function');
+                const form = new FormData(); form.append('image', file);
+                const res = await fetch(IMG_UPLOAD_URL, { method:'POST', headers:{'Authorization':`Bearer ${SUPABASE_ANON_KEY}`}, body:form });
+                const data = await res.json();
+                if(data.url) {
+                    document.getElementById('logoPreview').src = data.url;
+                    document.getElementById('logoPreview').style.display = 'block';
+                    cafeData.logo_url = data.url;
+                    await _sb.from('cafes').update({logo_url: data.url}).eq('id', cafeData.id);
+                    toast('Logo uploaded!');
+                } else toast('Upload failed');
             };
             input.click();
         });
-        document.getElementById('autoLogoBtn').addEventListener('click', () => toast('Auto-fetch requires edge function'));
+        document.getElementById('autoLogoBtn').addEventListener('click', async () => {
+            const name = cafeData.cafe_name || 'cafe';
+            const res = await fetch(AUTO_IMG_URL, { method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${SUPABASE_ANON_KEY}`}, body:JSON.stringify({query: name + ' logo'}) });
+            const data = await res.json();
+            if(data.imageUrl) {
+                document.getElementById('logoPreview').src = data.imageUrl;
+                document.getElementById('logoPreview').style.display = 'block';
+                cafeData.logo_url = data.imageUrl;
+                await _sb.from('cafes').update({logo_url: data.imageUrl}).eq('id', cafeData.id);
+                toast('Logo auto-fetched!');
+            } else toast('No image found');
+        });
 
         // QR Code
         document.getElementById('generateQrBtn').addEventListener('click', () => {
@@ -639,7 +662,12 @@
             const finalDesc = varParts.length ? 'VAR::' + varParts.join('|') : desc;
             let imageUrl = document.getElementById('itemImageFile').dataset.autoUrl || '';
             const file = document.getElementById('itemImageFile').files[0];
-            if (file) toast('Image upload will be available after edge function deployment');
+            if (file) {
+                const form = new FormData(); form.append('image', file);
+                const res = await fetch(IMG_UPLOAD_URL, { method:'POST', headers:{'Authorization':`Bearer ${SUPABASE_ANON_KEY}`}, body:form });
+                const data = await res.json();
+                if(data.url) imageUrl = data.url;
+            }
             const itemData = {
                 name, price, category, discount, description: finalDesc,
                 featured: tags.includes('featured'), tags: tags.join(',') || null,
@@ -681,7 +709,7 @@
             else { document.getElementById('newsTitle').value = ''; document.getElementById('newsBody').value = ''; loadNews(); toast('News posted!'); }
         });
 
-        // AI Scanner placeholder
+        // AI Scanner
         document.getElementById('takePhotoBtn').addEventListener('click', () => { document.getElementById('aiMenuImageFile').setAttribute('capture','environment'); document.getElementById('aiMenuImageFile').click(); });
         document.getElementById('galleryUploadBtn').addEventListener('click', () => { document.getElementById('aiMenuImageFile').removeAttribute('capture'); document.getElementById('aiMenuImageFile').click(); });
         document.getElementById('aiMenuImageFile').addEventListener('change', function() {
@@ -705,9 +733,70 @@
             });
             document.getElementById('scanMenuBtn').style.display = selectedFiles.length ? 'inline-block' : 'none';
         }
-        document.getElementById('scanMenuBtn').addEventListener('click', () => toast('AI scanning will work after you deploy the Gemini edge function'));
+        document.getElementById('scanMenuBtn').addEventListener('click', async () => {
+            if (!cafeData.id) return toast('Cafe not ready', true);
+            if (selectedFiles.length === 0) return toast('No images selected', true);
+            const statusEl = document.getElementById('aiScannerStatus');
+            statusEl.innerHTML = '<span style="display:inline-block; width:16px; height:16px; border:2px solid rgba(255,255,255,0.3); border-radius:50%; border-top-color:var(--amber); animation: spin 1s ease-in-out infinite; margin-right:8px;"></span> Scanning 0/' + selectedFiles.length + ' images...';
+            statusEl.style.color = 'var(--amber)';
+            document.getElementById('scanMenuBtn').disabled = true;
+            let allInsertedItems = [];
+            let processedCount = 0;
+            for (let i = 0; i < selectedFiles.length; i++) {
+                const file = selectedFiles[i];
+                try {
+                    const base64 = await new Promise(res => { const r = new FileReader(); r.onload = e => res(e.target.result.split(',')[1]); r.readAsDataURL(file); });
+                    const response = await fetch(GEMINI_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+                        body: JSON.stringify({ imageBase64: base64, mimeType: file.type })
+                    });
+                    const result = await response.json();
+                    if (!response.ok) throw new Error(result.error || result.message || `HTTP ${response.status}`);
+                    const items = result.items;
+                    if (items && items.length > 0) {
+                        const inserts = items.map(item => {
+                            let desc = item.description || '';
+                            if (item.variants && item.variants.length > 0) {
+                                const varParts = item.variants.map(v => `${v.name}=${v.price}`).join('|');
+                                desc = 'VAR::' + varParts;
+                            }
+                            return { cafe_id: cafeData.id, name: item.name, price: parseFloat(item.price) || 0, category: item.category || 'Uncategorized', description: desc, available: true };
+                        });
+                        allInsertedItems = allInsertedItems.concat(inserts);
+                    }
+                    processedCount++;
+                    statusEl.innerHTML = '<span style="display:inline-block; width:16px; height:16px; border:2px solid rgba(255,255,255,0.3); border-radius:50%; border-top-color:var(--amber); animation: spin 1s ease-in-out infinite; margin-right:8px;"></span> Scanning ' + processedCount + '/' + selectedFiles.length + ' images...';
+                } catch (err) {
+                    console.error('Error on image ' + (i + 1), err);
+                    toast(`Image ${i + 1} failed: ${err.message}`, true);
+                    processedCount++;
+                }
+            }
+            if (allInsertedItems.length > 0) {
+                const { error } = await _sb.from('menu_items').insert(allInsertedItems);
+                if (error) { statusEl.innerHTML = `❌ Failed to save items: ${error.message}`; statusEl.style.color = '#c0392b'; }
+                else { statusEl.innerHTML = `🎉 Success! ${allInsertedItems.length} items added from ${processedCount} image(s).`; statusEl.style.color = '#27ae60'; }
+            } else { statusEl.innerHTML = '❌ No items detected in any image.'; statusEl.style.color = '#c0392b'; }
+            document.getElementById('scanMenuBtn').disabled = false;
+            selectedFiles = [];
+            updatePreviews();
+            document.getElementById('scanMenuBtn').style.display = 'none';
+            loadItems(); loadStats();
+        });
 
-        document.getElementById('autoImageBtn').addEventListener('click', () => toast('Auto image fetch requires edge function'));
+        // Auto image for items
+        document.getElementById('autoImageBtn').addEventListener('click', async () => {
+            const name = document.getElementById('itemName').value.trim();
+            if(!name) return toast('Enter item name');
+            const res = await fetch(AUTO_IMG_URL, { method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${SUPABASE_ANON_KEY}`}, body:JSON.stringify({query:name}) });
+            const data = await res.json();
+            if(data.imageUrl) {
+                document.getElementById('itemImagePreview').src = data.imageUrl;
+                document.getElementById('itemImagePreview').style.display = 'block';
+                document.getElementById('itemImageFile').dataset.autoUrl = data.imageUrl;
+            }
+        });
 
         init();
     </script>
