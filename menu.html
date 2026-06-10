@@ -235,43 +235,34 @@
         @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:none} }
         .empty-state { text-align:center; padding:4rem 2rem; color:var(--muted); }
         .empty-icon { font-size:2.8rem; margin-bottom:0.8rem; opacity:0.35; }
-        /* News section */
-        .news-section {
-            margin-top: 2.5rem;
-            padding: 1.5rem;
+
+        /* Fixed news ticker */
+        .news-ticker {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
             background: var(--card-bg);
-            border: 1px solid var(--card-border);
-            border-radius: var(--radius);
-            box-shadow: var(--shadow);
+            border-top: 1px solid var(--amber);
+            padding: 0.8rem 1.2rem;
+            z-index: 45;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+            font-weight: 500;
         }
-        .news-section h3 {
-            font-size: 1.5rem;
-            color: var(--amber);
-            margin-bottom: 1rem;
-            font-family: 'Cormorant Garamond', serif;
+        .news-ticker i { color: var(--amber); font-size: 1.1rem; }
+        .news-ticker span {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
-        .news-item {
-            background: var(--glass);
-            border: 1px solid var(--glass-border);
-            border-radius: 14px;
-            padding: 0.8rem;
-            margin-bottom: 0.5rem;
-        }
-        .news-item h4 {
-            font-size: 1rem;
-            color: var(--amber);
-            margin-bottom: 0.2rem;
-        }
-        .news-item p {
-            font-size: 0.82rem;
-            color: var(--muted);
-        }
-        .news-item small {
-            color: var(--muted);
-            font-size: 0.7rem;
-        }
+        .menu-content { padding-bottom: 60px !important; }
+
         @media (max-width:640px) {
-            .menu-content { padding:1.2rem 1.2rem 130px; }
+            .menu-content { padding:1.2rem 1.2rem 100px; }
             .menu-item { gap:0.9rem !important; padding:1rem !important; border-radius:14px !important; }
             .img-wrap  { width:80px !important; height:80px !important; }
             .item-name { font-size:1.12rem !important; }
@@ -319,11 +310,6 @@
             <div class="search-container"><div class="search-wrap"><span class="search-icon">🔍</span><input type="text" class="search-bar" id="searchBar" placeholder="Search dishes, drinks…"></div></div>
             <div class="category-tabs" id="categoryTabs"></div>
             <div id="menuSections"></div>
-            <!-- News Section -->
-            <div id="newsSection" class="news-section" style="display:none;">
-                <h3>📰 Cafe News</h3>
-                <div id="newsContainer"></div>
-            </div>
         </div>
     </div>
 
@@ -347,6 +333,12 @@
         <div class="success-icon">✅</div>
         <div class="success-title">Order Placed!</div>
         <p class="success-sub" id="successMsg">We're preparing your order…</p>
+    </div>
+
+    <!-- Fixed news ticker (replaces old news section) -->
+    <div id="newsTicker" class="news-ticker" style="display:none;">
+        <i>📰</i>
+        <span id="newsTickerText"></span>
     </div>
 
     <script>
@@ -403,7 +395,7 @@
             }
             renderMenu(true);
             updateCartUI();
-            loadNews(); // <-- LOAD NEWS HERE
+            loadNews();   // <-- news loaded here
             setTimeout(subscribeToPush, 3000);
         }
 
@@ -604,7 +596,6 @@
             }
             setTimeout(() => { overlay.classList.remove('show'); overlay.querySelectorAll('.confetti-dot').forEach(d => d.remove()); }, 3600);
 
-            // Google review prompt
             if (cafeData.google_review_url) {
                 setTimeout(() => {
                     if (confirm('Enjoyed your experience? Leave us a Google review!')) {
@@ -613,7 +604,6 @@
                 }, 1500);
             }
 
-            // Telegram notification
             if (cafeData.telegram_chat_id) {
                 fetch(TELEGRAM_NOTIFY_URL, {
                     method: 'POST',
@@ -673,30 +663,24 @@
             recognition.start();
         });
 
-        // News loader
+        // News loader (fixed ticker)
         async function loadNews() {
             if (!cafeId) return;
             const { data, error } = await _sb.from('news_posts')
-                .select('*')
+                .select('title')
                 .eq('cafe_id', cafeId)
                 .order('created_at', { ascending: false })
-                .limit(5);
+                .limit(3);
             if (error) {
                 console.error('News fetch error:', error);
                 return;
             }
             if (data && data.length > 0) {
-                document.getElementById('newsSection').style.display = 'block';
-                const container = document.getElementById('newsContainer');
-                container.innerHTML = data.map(post => `
-                    <div class="news-item">
-                        <h4>${post.title}</h4>
-                        <p>${post.body}</p>
-                        <small>${new Date(post.created_at).toLocaleDateString()}</small>
-                    </div>
-                `).join('');
+                const ticker = document.getElementById('newsTicker');
+                ticker.style.display = 'flex';
+                document.getElementById('newsTickerText').textContent = data.map(p => p.title).join('  •  ');
             } else {
-                document.getElementById('newsSection').style.display = 'none';
+                document.getElementById('newsTicker').style.display = 'none';
             }
         }
 
