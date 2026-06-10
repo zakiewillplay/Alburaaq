@@ -70,7 +70,6 @@
         .toast { background:var(--amber); color:#fff; padding:0.7rem 1.2rem; border-radius:30px; font-weight:600; font-size:0.85rem; animation: slideIn 0.3s ease; }
         .toast.error { background:#c0392b; }
         @keyframes slideIn { from{transform:translateX(100%);opacity:0} to{transform:none;opacity:1} }
-        @keyframes spin { to { transform: rotate(360deg); } }
         .news-item { background:var(--glass); border:1px solid var(--glass-border); border-radius:14px; padding:0.8rem; margin-bottom:0.5rem; }
         .news-item h4 { font-size:1rem; color:var(--amber); margin-bottom:0.2rem; }
         .news-item p { font-size:0.82rem; color:var(--muted); }
@@ -263,17 +262,12 @@
     </div>
 
     <script>
-        // ===== SUPABASE CONFIGURATION =====
         const SUPABASE_URL = 'https://dsbqhorzcbcrjivrgauk.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRzYnFob3J6Y2JjcmppdnJnYXVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMTQxMjAsImV4cCI6MjA5NjU5MDEyMH0.mSv--VVeaKzYSUGenYT5uYuIv85A4C0A0eyqT-DWv2o';
-        const BASE_URL = window.location.origin + '/menu.html?id=';
-        // Edge Function URLs (replace when ready)
-        const GEMINI_URL = 'YOUR_SUPABASE_EDGE_FUNCTION_URL/gemini';
-        const AUTO_IMG_URL = 'YOUR_SUPABASE_EDGE_FUNCTION_URL/auto-image';
-        const IMG_UPLOAD_URL = 'YOUR_SUPABASE_EDGE_FUNCTION_URL/image-upload';
+        // Your exact GitHub Pages URL
+        const BASE_URL = 'https://zakiewillplay.github.io/Alburaaq/menu.html?id=';
         const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // ===== UTILS =====
         function toast(msg, isError = false) {
             const el = document.createElement('div');
             el.className = 'toast' + (isError ? ' error' : '');
@@ -326,52 +320,30 @@
         document.getElementById('logoutBtn').addEventListener('click', () => _sb.auth.signOut().then(() => location.href='index.html'));
         document.getElementById('livePreviewBtn').addEventListener('click', () => {
             if(cafeData?.id) window.open(BASE_URL + cafeData.id, '_blank');
-            else toast('Cafe not ready', true);
+            else toast('Cafe not ready');
         });
 
-        // ===== GLOBALS =====
-        let cafeData, allOrders = [], allItems = [], activeOrderTab = 'new', realtimeChannel;
+        let cafeData, allOrders=[], allItems=[], activeOrderTab='new', realtimeChannel;
         let selectedFiles = [];
 
-        // ===== INIT =====
         async function init() {
             try {
-                const { data: { user }, error: userError } = await _sb.auth.getUser();
-                if (userError || !user) {
-                    toast('Not logged in. Redirecting…', true);
-                    setTimeout(() => location.href = 'auth.html', 2000);
-                    return;
-                }
+                const { data: { user } } = await _sb.auth.getUser();
+                if (!user) { toast('Not logged in'); setTimeout(() => location.href='auth.html', 2000); return; }
 
-                // Get or create cafe
-                let { data: cafe, error: cafeError } = await _sb.from('cafes')
-                    .select('*').eq('owner_id', user.id).maybeSingle();
-
-                if (cafeError) {
-                    toast('Database error: ' + cafeError.message, true);
-                    return;
-                }
-
+                let { data: cafe, error } = await _sb.from('cafes').select('*').eq('owner_id', user.id).maybeSingle();
+                if (error) throw error;
                 if (!cafe) {
-                    toast('Creating your café…');
-                    const { data: newCafe, error: createError } = await _sb.from('cafes')
-                        .insert({
-                            owner_id: user.id,
-                            cafe_name: 'My Cafe',
-                            trial_ends_at: new Date(Date.now() + 30*24*60*60*1000).toISOString()
-                        }).select().maybeSingle();
-
-                    if (createError) {
-                        toast('Failed to create cafe: ' + createError.message, true);
-                        return;
-                    }
+                    const { data: newCafe, error: createError } = await _sb.from('cafes').insert({
+                        owner_id: user.id, cafe_name: 'My Cafe',
+                        trial_ends_at: new Date(Date.now() + 30*24*60*60*1000).toISOString()
+                    }).select().maybeSingle();
+                    if (createError) throw createError;
                     cafe = newCafe;
                 }
-
                 cafeData = cafe;
                 toast('Dashboard ready');
 
-                // Fill settings fields
                 document.getElementById('setCafeName').value = cafeData.cafe_name || '';
                 document.getElementById('setWhatsapp').value = cafeData.whatsapp || '';
                 document.getElementById('setDesc').value = cafeData.description || '';
@@ -383,38 +355,34 @@
                 document.getElementById('setInstagram').value = cafeData.instagram_url || '';
                 document.getElementById('setFacebook').value = cafeData.facebook_url || '';
                 document.getElementById('setGoogleReview').value = cafeData.google_review_url || '';
-                if (cafeData.logo_url) {
+                if(cafeData.logo_url) {
                     document.getElementById('logoPreview').src = cafeData.logo_url;
                     document.getElementById('logoPreview').style.display = 'block';
                 }
 
-                // Table number select
                 const tableSelect = document.getElementById('tableNumberSelect');
                 for (let i = 1; i <= 20; i++) {
-                    const opt = document.createElement('option');
-                    opt.value = i; opt.textContent = `Table ${i}`;
+                    const opt = document.createElement('option'); opt.value = i; opt.textContent = `Table ${i}`;
                     tableSelect.appendChild(opt);
                 }
 
-                // Load data
+                document.getElementById('copyCafeIdBtn').addEventListener('click', () => {
+                    navigator.clipboard.writeText(cafeData.id); toast('Cafe ID copied!');
+                });
+
                 await Promise.all([loadStats(), loadOrders(), loadItems(), loadNews()]);
                 setupRealtime();
                 createDefaultVariantRow();
-
-                document.getElementById('copyCafeIdBtn').addEventListener('click', () => {
-                    navigator.clipboard.writeText(cafeData.id);
-                    toast('Cafe ID copied!');
-                });
 
             } catch (err) {
                 toast('Fatal error: ' + err.message, true);
             }
         }
 
-        // ===== SETTINGS =====
+        // Save Settings
         document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
-            if (!cafeData) return toast('Cafe not loaded', true);
-            const updates = {
+            if (!cafeData) return;
+            const u = {
                 cafe_name: document.getElementById('setCafeName').value.trim(),
                 whatsapp: document.getElementById('setWhatsapp').value.trim(),
                 description: document.getElementById('setDesc').value.trim(),
@@ -426,59 +394,47 @@
                 facebook_url: document.getElementById('setFacebook').value.trim(),
                 google_review_url: document.getElementById('setGoogleReview').value.trim()
             };
-            const { error } = await _sb.from('cafes').update(updates).eq('id', cafeData.id);
-            if (error) {
-                toast('Save failed: ' + error.message, true);
-            } else {
-                Object.assign(cafeData, updates);
-                toast('Settings saved!');
-            }
+            const { error } = await _sb.from('cafes').update(u).eq('id', cafeData.id);
+            if (error) toast('Save failed: ' + error.message, true);
+            else { Object.assign(cafeData, u); toast('Settings saved!'); }
         });
 
-        // Logo upload (placeholder – will be replaced with edge function)
+        // Logo upload (placeholder)
         document.getElementById('uploadLogoBtn').addEventListener('click', () => {
-            const input = document.createElement('input');
-            input.type = 'file'; input.accept = 'image/*';
+            const input = document.createElement('input'); input.type='file'; input.accept='image/*';
             input.onchange = async (e) => {
                 const file = e.target.files[0];
-                if (!file) return;
-                // For now, we just show a placeholder; actual upload needs edge function
-                toast('Logo upload will work after you deploy the image-upload edge function', true);
+                if(!file) return;
+                toast('Logo upload will work after you deploy the image-upload edge function');
             };
             input.click();
         });
+        document.getElementById('autoLogoBtn').addEventListener('click', () => toast('Auto-fetch requires edge function'));
 
-        document.getElementById('autoLogoBtn').addEventListener('click', async () => {
-            toast('Auto-fetch logo requires edge function – feature coming soon', true);
-        });
-
-        // ===== QR CODE =====
+        // QR Code
         document.getElementById('generateQrBtn').addEventListener('click', () => {
-            if (!cafeData || !cafeData.id) return toast('Cafe not ready', true);
+            if (!cafeData?.id) return;
             const url = BASE_URL + cafeData.id;
             document.getElementById('qrDisplay').innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(url)}" width="250" height="250">`;
             document.getElementById('qrUrl').textContent = url;
             document.getElementById('copyQrLink').style.display = 'inline-block';
         });
         document.getElementById('copyQrLink').addEventListener('click', () => {
-            navigator.clipboard.writeText(document.getElementById('qrUrl').textContent);
-            toast('Link copied!');
+            navigator.clipboard.writeText(document.getElementById('qrUrl').textContent); toast('Link copied!');
         });
         document.getElementById('generateTableQrBtn').addEventListener('click', () => {
             const table = document.getElementById('tableNumberSelect').value;
-            if (!table) return toast('Select a table number', true);
-            if (!cafeData || !cafeData.id) return toast('Cafe not ready', true);
+            if (!table || !cafeData?.id) return;
             const url = BASE_URL + cafeData.id + '&table=' + table;
             document.getElementById('tableQrDisplay').innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(url)}" width="250" height="250">`;
             document.getElementById('tableQrUrl').textContent = url;
             document.getElementById('copyTableQrLink').style.display = 'inline-block';
         });
         document.getElementById('copyTableQrLink').addEventListener('click', () => {
-            navigator.clipboard.writeText(document.getElementById('tableQrUrl').textContent);
-            toast('Table link copied!');
+            navigator.clipboard.writeText(document.getElementById('tableQrUrl').textContent); toast('Table link copied!');
         });
         document.getElementById('downloadAllTableQrsBtn').addEventListener('click', async () => {
-            if (!cafeData || !cafeData.id) return toast('Cafe not ready', true);
+            if (!cafeData?.id) return;
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             for (let i = 1; i <= 20; i++) {
@@ -486,20 +442,18 @@
                 const img = document.createElement('img');
                 img.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
                 await new Promise(resolve => { img.onload = resolve; });
-                const canvas = document.createElement('canvas');
-                canvas.width = img.width; canvas.height = img.height;
+                const canvas = document.createElement('canvas'); canvas.width = img.width; canvas.height = img.height;
                 canvas.getContext('2d').drawImage(img, 0, 0);
                 const dataUrl = canvas.toDataURL('image/png');
                 if (i > 1) doc.addPage();
-                doc.setFontSize(16);
-                doc.text(`Table ${i}`, 105, 20, { align: 'center' });
+                doc.setFontSize(16); doc.text(`Table ${i}`, 105, 20, { align: 'center' });
                 doc.addImage(dataUrl, 'PNG', 55, 30, 100, 100);
             }
             doc.save(`table_qr_codes_${cafeData.id.slice(0,8)}.pdf`);
             toast('PDF downloaded!');
         });
 
-        // ===== ORDERS =====
+        // Orders
         async function loadOrders() {
             if (!cafeData) return;
             const { data } = await _sb.from('orders').select('*').eq('cafe_id', cafeData.id).order('created_at', { ascending: false });
@@ -531,15 +485,10 @@
                 </div>`;
             }).join('') : '<p style="color:var(--muted);">No orders</p>';
         }
-        window.updateOrder = async (id, status) => {
-            await _sb.from('orders').update({ status }).eq('id', id);
-            loadOrders();
-        };
+        window.updateOrder = async (id, status) => { await _sb.from('orders').update({ status }).eq('id', id); loadOrders(); };
         document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', function() {
             document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
-            this.classList.add('active');
-            activeOrderTab = this.dataset.tab;
-            renderOrders();
+            this.classList.add('active'); activeOrderTab = this.dataset.tab; renderOrders();
         }));
         document.getElementById('orderSearch').addEventListener('input', renderOrders);
         document.getElementById('exportCsvBtn').addEventListener('click', () => {
@@ -567,7 +516,7 @@
             document.getElementById('statViews').textContent = v || 0;
         }
 
-        // ===== ITEMS =====
+        // Items
         async function loadItems() {
             if (!cafeData) return;
             const { data } = await _sb.from('menu_items').select('*').eq('cafe_id', cafeData.id).order('category');
@@ -590,9 +539,7 @@
                 </div>`).join('');
         }
         window.toggleItem = async (id, checked) => { await _sb.from('menu_items').update({ available: checked }).eq('id', id); };
-        window.deleteItem = async (id) => {
-            if (confirm('Delete?')) { await _sb.from('menu_items').delete().eq('id', id); loadItems(); loadStats(); }
-        };
+        window.deleteItem = async (id) => { if (confirm('Delete?')) { await _sb.from('menu_items').delete().eq('id', id); loadItems(); loadStats(); } };
 
         function createVariantRow(name = '', price = '') {
             const row = document.createElement('div');
@@ -611,11 +558,8 @@
         });
         document.getElementById('itemCategorySelect').addEventListener('change', function() {
             const input = document.getElementById('itemCategoryInput');
-            if (this.value === '__new__') {
-                input.style.display = 'block'; input.value = '';
-            } else {
-                input.style.display = 'none';
-            }
+            if (this.value === '__new__') { input.style.display = 'block'; input.value = ''; }
+            else { input.style.display = 'none'; }
         });
 
         window.editItem = (id) => {
@@ -641,22 +585,15 @@
             document.getElementById('tagSelling').checked = (item.tags || '').split(',').includes('bestselling');
             document.querySelectorAll('.allergenCheck').forEach(c => c.checked = (item.allergens || []).includes(c.value));
             document.querySelectorAll('.dietaryCheck').forEach(c => c.checked = (item.dietary || []).includes(c.value));
-            if (item.image_url) {
-                document.getElementById('itemImagePreview').src = item.image_url;
-                document.getElementById('itemImagePreview').style.display = 'block';
-            } else {
-                document.getElementById('itemImagePreview').style.display = 'none';
-            }
-            document.getElementById('itemImageFile').value = '';
-            document.getElementById('itemImageFile').dataset.autoUrl = '';
+            if (item.image_url) { document.getElementById('itemImagePreview').src = item.image_url; document.getElementById('itemImagePreview').style.display = 'block'; }
+            else document.getElementById('itemImagePreview').style.display = 'none';
+            document.getElementById('itemImageFile').value = ''; document.getElementById('itemImageFile').dataset.autoUrl = '';
             const varContainer = document.getElementById('variantsContainer');
             varContainer.innerHTML = '';
             if (item.description?.startsWith('VAR::')) {
                 const parts = item.description.replace('VAR::', '').split('|');
                 parts.forEach(p => { const [n, pr] = p.split('='); varContainer.appendChild(createVariantRow(n, pr)); });
-            } else {
-                varContainer.appendChild(createVariantRow());
-            }
+            } else varContainer.appendChild(createVariantRow());
             document.getElementById('addItemCard').classList.remove('collapsed');
             document.getElementById('addItemCard').scrollIntoView({ behavior: 'smooth' });
             document.getElementById('submitItemBtn').textContent = 'Update Item';
@@ -703,10 +640,7 @@
             const finalDesc = varParts.length ? 'VAR::' + varParts.join('|') : desc;
             let imageUrl = document.getElementById('itemImageFile').dataset.autoUrl || '';
             const file = document.getElementById('itemImageFile').files[0];
-            if (file) {
-                // In production, upload to ImgBB via edge function; for now we keep placeholder
-                toast('Image upload will be available after edge function deployment', true);
-            }
+            if (file) toast('Image upload will be available after edge function deployment');
             const itemData = {
                 name, price, category, discount, description: finalDesc,
                 featured: tags.includes('featured'), tags: tags.join(',') || null,
@@ -728,40 +662,29 @@
         document.getElementById('submitItemBtn').addEventListener('click', () => saveItem(false));
         document.getElementById('saveAndNextBtn').addEventListener('click', () => saveItem(true));
 
-        // ===== NEWS =====
+        // News
         async function loadNews() {
             if (!cafeData) return;
             const { data } = await _sb.from('news_posts').select('*').eq('cafe_id', cafeData.id).order('created_at', { ascending: false });
-            const newsList = document.getElementById('newsList');
-            newsList.innerHTML = data.length ? data.map(p => `
+            document.getElementById('newsList').innerHTML = data.length ? data.map(p => `
                 <div class="news-item">
                     <h4>${p.title}</h4>
                     <p>${p.body}</p>
                     <small style="color:var(--muted)">${new Date(p.created_at).toLocaleDateString()}</small>
-                </div>
-            `).join('') : '<p style="color:var(--muted);">No news yet.</p>';
+                </div>`).join('') : '<p style="color:var(--muted);">No news yet.</p>';
         }
         document.getElementById('addNewsBtn').addEventListener('click', async () => {
             const title = document.getElementById('newsTitle').value.trim();
             const body = document.getElementById('newsBody').value.trim();
             if (!title || !body) return toast('Fill title and body', true);
             const { error } = await _sb.from('news_posts').insert({ cafe_id: cafeData.id, title, body });
-            if (error) { toast('News post failed: ' + error.message, true); return; }
-            document.getElementById('newsTitle').value = '';
-            document.getElementById('newsBody').value = '';
-            loadNews();
-            toast('News posted!');
+            if (error) toast('News post failed: ' + error.message, true);
+            else { document.getElementById('newsTitle').value = ''; document.getElementById('newsBody').value = ''; loadNews(); toast('News posted!'); }
         });
 
-        // ===== AI SCANNER (placeholder – needs edge function) =====
-        document.getElementById('takePhotoBtn').addEventListener('click', () => {
-            document.getElementById('aiMenuImageFile').setAttribute('capture', 'environment');
-            document.getElementById('aiMenuImageFile').click();
-        });
-        document.getElementById('galleryUploadBtn').addEventListener('click', () => {
-            document.getElementById('aiMenuImageFile').removeAttribute('capture');
-            document.getElementById('aiMenuImageFile').click();
-        });
+        // AI Scanner (placeholder)
+        document.getElementById('takePhotoBtn').addEventListener('click', () => { document.getElementById('aiMenuImageFile').setAttribute('capture','environment'); document.getElementById('aiMenuImageFile').click(); });
+        document.getElementById('galleryUploadBtn').addEventListener('click', () => { document.getElementById('aiMenuImageFile').removeAttribute('capture'); document.getElementById('aiMenuImageFile').click(); });
         document.getElementById('aiMenuImageFile').addEventListener('change', function() {
             for (const file of this.files) {
                 if (!selectedFiles.find(f => f.name === file.name && f.size === file.size)) selectedFiles.push(file);
@@ -783,16 +706,10 @@
             });
             document.getElementById('scanMenuBtn').style.display = selectedFiles.length ? 'inline-block' : 'none';
         }
-        document.getElementById('scanMenuBtn').addEventListener('click', async () => {
-            toast('AI scanning will be available after you deploy the Gemini edge function', true);
-        });
+        document.getElementById('scanMenuBtn').addEventListener('click', () => toast('AI scanning will work after you deploy the Gemini edge function'));
 
-        // ===== AUTO IMAGE (placeholder) =====
-        document.getElementById('autoImageBtn').addEventListener('click', async () => {
-            toast('Auto image fetch requires edge function – coming soon', true);
-        });
+        document.getElementById('autoImageBtn').addEventListener('click', () => toast('Auto image fetch requires edge function'));
 
-        // Start everything
         init();
     </script>
 </body>
