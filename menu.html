@@ -235,6 +235,41 @@
         @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:none} }
         .empty-state { text-align:center; padding:4rem 2rem; color:var(--muted); }
         .empty-icon { font-size:2.8rem; margin-bottom:0.8rem; opacity:0.35; }
+        /* News section */
+        .news-section {
+            margin-top: 2.5rem;
+            padding: 1.5rem;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+        }
+        .news-section h3 {
+            font-size: 1.5rem;
+            color: var(--amber);
+            margin-bottom: 1rem;
+            font-family: 'Cormorant Garamond', serif;
+        }
+        .news-item {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            padding: 0.8rem;
+            margin-bottom: 0.5rem;
+        }
+        .news-item h4 {
+            font-size: 1rem;
+            color: var(--amber);
+            margin-bottom: 0.2rem;
+        }
+        .news-item p {
+            font-size: 0.82rem;
+            color: var(--muted);
+        }
+        .news-item small {
+            color: var(--muted);
+            font-size: 0.7rem;
+        }
         @media (max-width:640px) {
             .menu-content { padding:1.2rem 1.2rem 130px; }
             .menu-item { gap:0.9rem !important; padding:1rem !important; border-radius:14px !important; }
@@ -284,6 +319,11 @@
             <div class="search-container"><div class="search-wrap"><span class="search-icon">🔍</span><input type="text" class="search-bar" id="searchBar" placeholder="Search dishes, drinks…"></div></div>
             <div class="category-tabs" id="categoryTabs"></div>
             <div id="menuSections"></div>
+            <!-- News Section -->
+            <div id="newsSection" class="news-section" style="display:none;">
+                <h3>📰 Cafe News</h3>
+                <div id="newsContainer"></div>
+            </div>
         </div>
     </div>
 
@@ -363,6 +403,7 @@
             }
             renderMenu(true);
             updateCartUI();
+            loadNews(); // <-- LOAD NEWS HERE
             setTimeout(subscribeToPush, 3000);
         }
 
@@ -589,7 +630,7 @@
             }
         });
 
-        // Voice order (same as before)
+        // Voice order (unchanged)
         let recognition = null;
         const voiceBtn = document.getElementById('voiceOrderBtn');
         voiceBtn.addEventListener('click', () => {
@@ -631,6 +672,33 @@
             recognition.onend = () => { voiceBtn.classList.remove('listening'); voiceBtn.textContent = '🎤'; recognition = null; };
             recognition.start();
         });
+
+        // News loader
+        async function loadNews() {
+            if (!cafeId) return;
+            const { data, error } = await _sb.from('news_posts')
+                .select('*')
+                .eq('cafe_id', cafeId)
+                .order('created_at', { ascending: false })
+                .limit(5);
+            if (error) {
+                console.error('News fetch error:', error);
+                return;
+            }
+            if (data && data.length > 0) {
+                document.getElementById('newsSection').style.display = 'block';
+                const container = document.getElementById('newsContainer');
+                container.innerHTML = data.map(post => `
+                    <div class="news-item">
+                        <h4>${post.title}</h4>
+                        <p>${post.body}</p>
+                        <small>${new Date(post.created_at).toLocaleDateString()}</small>
+                    </div>
+                `).join('');
+            } else {
+                document.getElementById('newsSection').style.display = 'none';
+            }
+        }
 
         async function subscribeToPush() {
             if (!('serviceWorkerRegistration' in navigator)) return;
