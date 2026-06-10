@@ -264,7 +264,6 @@
     <script>
         const SUPABASE_URL = 'https://dsbqhorzcbcrjivrgauk.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRzYnFob3J6Y2JjcmppdnJnYXVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMTQxMjAsImV4cCI6MjA5NjU5MDEyMH0.mSv--VVeaKzYSUGenYT5uYuIv85A4C0A0eyqT-DWv2o';
-        // Your exact GitHub Pages URL
         const BASE_URL = 'https://zakiewillplay.github.io/Alburaaq/menu.html?id=';
         const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -379,7 +378,7 @@
             }
         }
 
-        // Save Settings
+        // Settings save
         document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
             if (!cafeData) return;
             const u = {
@@ -399,7 +398,7 @@
             else { Object.assign(cafeData, u); toast('Settings saved!'); }
         });
 
-        // Logo upload (placeholder)
+        // Logo upload placeholder
         document.getElementById('uploadLogoBtn').addEventListener('click', () => {
             const input = document.createElement('input'); input.type='file'; input.accept='image/*';
             input.onchange = async (e) => {
@@ -499,7 +498,7 @@
         function setupRealtime() {
             if (realtimeChannel) _sb.removeChannel(realtimeChannel);
             realtimeChannel = _sb.channel('orders-realtime')
-                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders', filter: `cafe_id=eq.${cafeData.id}` }, payload => {
+                .on('postgres_changes', { event:'INSERT', schema:'public', table:'orders', filter:`cafe_id=eq.${cafeData.id}` }, payload => {
                     allOrders.unshift(payload.new); renderOrders(); beep(); loadStats();
                 }).subscribe();
         }
@@ -682,7 +681,7 @@
             else { document.getElementById('newsTitle').value = ''; document.getElementById('newsBody').value = ''; loadNews(); toast('News posted!'); }
         });
 
-        // AI Scanner (placeholder)
+        // AI Scanner placeholder
         document.getElementById('takePhotoBtn').addEventListener('click', () => { document.getElementById('aiMenuImageFile').setAttribute('capture','environment'); document.getElementById('aiMenuImageFile').click(); });
         document.getElementById('galleryUploadBtn').addEventListener('click', () => { document.getElementById('aiMenuImageFile').removeAttribute('capture'); document.getElementById('aiMenuImageFile').click(); });
         document.getElementById('aiMenuImageFile').addEventListener('change', function() {
