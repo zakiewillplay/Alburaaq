@@ -68,12 +68,18 @@
         .qr-box img { background:#fff; padding:0.5rem; border-radius:12px; margin-top:1rem; max-width:200px; }
         .toast-container { position:fixed; top:20px; right:20px; z-index:999; display:flex; flex-direction:column; gap:10px; }
         .toast { background:var(--amber); color:#fff; padding:0.7rem 1.2rem; border-radius:30px; font-weight:600; font-size:0.85rem; animation: slideIn 0.3s ease; }
+        .toast.error { background:#c0392b; }
         @keyframes slideIn { from{transform:translateX(100%);opacity:0} to{transform:none;opacity:1} }
-        @keyframes spin { to { transform:rotate(360deg); } }
-        /* News mobile-friendly */
+        @keyframes spin { to { transform: rotate(360deg); } }
         .news-item { background:var(--glass); border:1px solid var(--glass-border); border-radius:14px; padding:0.8rem; margin-bottom:0.5rem; }
         .news-item h4 { font-size:1rem; color:var(--amber); margin-bottom:0.2rem; }
         .news-item p { font-size:0.82rem; color:var(--muted); }
+        .switch { position:relative; display:inline-block; width:44px; height:24px; }
+        .switch input { opacity:0; width:0; height:0; }
+        .slider { position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background:#555; border-radius:24px; transition:0.3s; }
+        .slider:before { position:absolute; content:""; height:18px; width:18px; left:3px; bottom:3px; background:white; border-radius:50%; transition:0.3s; }
+        input:checked+.slider { background:var(--amber); }
+        input:checked+.slider:before { transform:translateX(20px); }
         @media (max-width:600px) {
             .header-row { flex-direction:column; align-items:flex-start; }
             .container { padding:1rem 0.8rem 90px; }
@@ -257,20 +263,23 @@
     </div>
 
     <script>
+        // ===== SUPABASE CONFIGURATION =====
         const SUPABASE_URL = 'https://dsbqhorzcbcrjivrgauk.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRzYnFob3J6Y2JjcmppdnJnYXVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMTQxMjAsImV4cCI6MjA5NjU5MDEyMH0.mSv--VVeaKzYSUGenYT5uYuIv85A4C0A0eyqT-DWv2o';
         const BASE_URL = window.location.origin + '/menu.html?id=';
-        const GEMINI_URL = 'YOUR_SUPABASE_EDGE_FUNCTION_URL/gemini'; // Replace with your edge function URL after deployment
+        // Edge Function URLs (replace when ready)
+        const GEMINI_URL = 'YOUR_SUPABASE_EDGE_FUNCTION_URL/gemini';
         const AUTO_IMG_URL = 'YOUR_SUPABASE_EDGE_FUNCTION_URL/auto-image';
         const IMG_UPLOAD_URL = 'YOUR_SUPABASE_EDGE_FUNCTION_URL/image-upload';
         const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        function toast(msg, err=false) {
+        // ===== UTILS =====
+        function toast(msg, isError = false) {
             const el = document.createElement('div');
-            el.className = 'toast';
+            el.className = 'toast' + (isError ? ' error' : '');
             el.textContent = msg;
             document.getElementById('toastContainer').appendChild(el);
-            setTimeout(() => el.remove(), 3000);
+            setTimeout(() => el.remove(), 4000);
         }
 
         function applyTheme() {
@@ -317,52 +326,95 @@
         document.getElementById('logoutBtn').addEventListener('click', () => _sb.auth.signOut().then(() => location.href='index.html'));
         document.getElementById('livePreviewBtn').addEventListener('click', () => {
             if(cafeData?.id) window.open(BASE_URL + cafeData.id, '_blank');
-            else toast('Cafe not ready');
+            else toast('Cafe not ready', true);
         });
 
-        let cafeData, allOrders=[], allItems=[], activeOrderTab='new', realtimeChannel;
+        // ===== GLOBALS =====
+        let cafeData, allOrders = [], allItems = [], activeOrderTab = 'new', realtimeChannel;
         let selectedFiles = [];
 
+        // ===== INIT =====
         async function init() {
-            const { data: { user } } = await _sb.auth.getUser();
-            if(!user) { location.href='auth.html'; return; }
-            cafeData = (await _sb.from('cafes').select('*').eq('owner_id', user.id).maybeSingle()).data;
-            if (!cafeData) {
-                const { data: newCafe } = await _sb.from('cafes').insert({owner_id:user.id, cafe_name:'My Cafe', trial_ends_at: new Date(Date.now()+30*24*60*60*1000).toISOString()}).select().maybeSingle();
-                cafeData = newCafe;
+            try {
+                const { data: { user }, error: userError } = await _sb.auth.getUser();
+                if (userError || !user) {
+                    toast('Not logged in. Redirecting…', true);
+                    setTimeout(() => location.href = 'auth.html', 2000);
+                    return;
+                }
+
+                // Get or create cafe
+                let { data: cafe, error: cafeError } = await _sb.from('cafes')
+                    .select('*').eq('owner_id', user.id).maybeSingle();
+
+                if (cafeError) {
+                    toast('Database error: ' + cafeError.message, true);
+                    return;
+                }
+
+                if (!cafe) {
+                    toast('Creating your café…');
+                    const { data: newCafe, error: createError } = await _sb.from('cafes')
+                        .insert({
+                            owner_id: user.id,
+                            cafe_name: 'My Cafe',
+                            trial_ends_at: new Date(Date.now() + 30*24*60*60*1000).toISOString()
+                        }).select().maybeSingle();
+
+                    if (createError) {
+                        toast('Failed to create cafe: ' + createError.message, true);
+                        return;
+                    }
+                    cafe = newCafe;
+                }
+
+                cafeData = cafe;
+                toast('Dashboard ready');
+
+                // Fill settings fields
+                document.getElementById('setCafeName').value = cafeData.cafe_name || '';
+                document.getElementById('setWhatsapp').value = cafeData.whatsapp || '';
+                document.getElementById('setDesc').value = cafeData.description || '';
+                document.getElementById('setPrimary').value = cafeData.primary_color || '#e8921a';
+                document.getElementById('setAccent').value = cafeData.accent_color || '#2F3E46';
+                document.getElementById('setGooglePlaceId').value = cafeData.google_place_id || '';
+                document.getElementById('setTelegramChatId').value = cafeData.telegram_chat_id || '';
+                document.getElementById('cafeIdDisplay').value = cafeData.id;
+                document.getElementById('setInstagram').value = cafeData.instagram_url || '';
+                document.getElementById('setFacebook').value = cafeData.facebook_url || '';
+                document.getElementById('setGoogleReview').value = cafeData.google_review_url || '';
+                if (cafeData.logo_url) {
+                    document.getElementById('logoPreview').src = cafeData.logo_url;
+                    document.getElementById('logoPreview').style.display = 'block';
+                }
+
+                // Table number select
+                const tableSelect = document.getElementById('tableNumberSelect');
+                for (let i = 1; i <= 20; i++) {
+                    const opt = document.createElement('option');
+                    opt.value = i; opt.textContent = `Table ${i}`;
+                    tableSelect.appendChild(opt);
+                }
+
+                // Load data
+                await Promise.all([loadStats(), loadOrders(), loadItems(), loadNews()]);
+                setupRealtime();
+                createDefaultVariantRow();
+
+                document.getElementById('copyCafeIdBtn').addEventListener('click', () => {
+                    navigator.clipboard.writeText(cafeData.id);
+                    toast('Cafe ID copied!');
+                });
+
+            } catch (err) {
+                toast('Fatal error: ' + err.message, true);
             }
-            document.getElementById('setCafeName').value = cafeData.cafe_name||'';
-            document.getElementById('setWhatsapp').value = cafeData.whatsapp||'';
-            document.getElementById('setDesc').value = cafeData.description||'';
-            document.getElementById('setPrimary').value = cafeData.primary_color||'#e8921a';
-            document.getElementById('setAccent').value = cafeData.accent_color||'#2F3E46';
-            document.getElementById('setGooglePlaceId').value = cafeData.google_place_id||'';
-            document.getElementById('setTelegramChatId').value = cafeData.telegram_chat_id||'';
-            document.getElementById('cafeIdDisplay').value = cafeData.id;
-            document.getElementById('setInstagram').value = cafeData.instagram_url||'';
-            document.getElementById('setFacebook').value = cafeData.facebook_url||'';
-            document.getElementById('setGoogleReview').value = cafeData.google_review_url||'';
-            if(cafeData.logo_url) {
-                document.getElementById('logoPreview').src = cafeData.logo_url;
-                document.getElementById('logoPreview').style.display = 'block';
-            }
-            document.getElementById('copyCafeIdBtn').addEventListener('click', () => {
-                navigator.clipboard.writeText(cafeData.id);
-                toast('Cafe ID copied!');
-            });
-            const tableSelect = document.getElementById('tableNumberSelect');
-            for (let i = 1; i <= 20; i++) {
-                const opt = document.createElement('option');
-                opt.value = i; opt.textContent = `Table ${i}`;
-                tableSelect.appendChild(opt);
-            }
-            await Promise.all([loadStats(), loadOrders(), loadItems(), loadNews()]);
-            if(cafeData.id) setupRealtime();
-            createDefaultVariantRow();
         }
 
+        // ===== SETTINGS =====
         document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
-            const u = {
+            if (!cafeData) return toast('Cafe not loaded', true);
+            const updates = {
                 cafe_name: document.getElementById('setCafeName').value.trim(),
                 whatsapp: document.getElementById('setWhatsapp').value.trim(),
                 description: document.getElementById('setDesc').value.trim(),
@@ -374,65 +426,59 @@
                 facebook_url: document.getElementById('setFacebook').value.trim(),
                 google_review_url: document.getElementById('setGoogleReview').value.trim()
             };
-            const { error } = await _sb.from('cafes').update(u).eq('id', cafeData.id);
-            if (error) toast('Save failed: ' + error.message, true);
-            else { Object.assign(cafeData, u); toast('Settings saved'); }
+            const { error } = await _sb.from('cafes').update(updates).eq('id', cafeData.id);
+            if (error) {
+                toast('Save failed: ' + error.message, true);
+            } else {
+                Object.assign(cafeData, updates);
+                toast('Settings saved!');
+            }
         });
 
-        // Logo upload / auto-fetch
+        // Logo upload (placeholder – will be replaced with edge function)
         document.getElementById('uploadLogoBtn').addEventListener('click', () => {
             const input = document.createElement('input');
             input.type = 'file'; input.accept = 'image/*';
             input.onchange = async (e) => {
                 const file = e.target.files[0];
-                if(!file) return;
-                const form = new FormData(); form.append('image', file);
-                const res = await fetch(IMG_UPLOAD_URL, { method:'POST', headers:{'Authorization':`Bearer ${SUPABASE_ANON_KEY}`}, body:form });
-                const data = await res.json();
-                if(data.url) {
-                    document.getElementById('logoPreview').src = data.url;
-                    document.getElementById('logoPreview').style.display = 'block';
-                    cafeData.logo_url = data.url;
-                    await _sb.from('cafes').update({logo_url: data.url}).eq('id', cafeData.id);
-                    toast('Logo uploaded!');
-                } else toast('Upload failed');
+                if (!file) return;
+                // For now, we just show a placeholder; actual upload needs edge function
+                toast('Logo upload will work after you deploy the image-upload edge function', true);
             };
             input.click();
         });
+
         document.getElementById('autoLogoBtn').addEventListener('click', async () => {
-            const name = cafeData.cafe_name || 'cafe';
-            const res = await fetch(AUTO_IMG_URL, { method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${SUPABASE_ANON_KEY}`}, body:JSON.stringify({query: name + ' logo'}) });
-            const data = await res.json();
-            if(data.imageUrl) {
-                document.getElementById('logoPreview').src = data.imageUrl;
-                document.getElementById('logoPreview').style.display = 'block';
-                cafeData.logo_url = data.imageUrl;
-                await _sb.from('cafes').update({logo_url: data.imageUrl}).eq('id', cafeData.id);
-                toast('Logo auto-fetched!');
-            } else toast('No image found');
+            toast('Auto-fetch logo requires edge function – feature coming soon', true);
         });
 
-        // QR Code Generation
+        // ===== QR CODE =====
         document.getElementById('generateQrBtn').addEventListener('click', () => {
-            if (!cafeData.id) return toast('Cafe not ready', true);
+            if (!cafeData || !cafeData.id) return toast('Cafe not ready', true);
             const url = BASE_URL + cafeData.id;
             document.getElementById('qrDisplay').innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(url)}" width="250" height="250">`;
             document.getElementById('qrUrl').textContent = url;
             document.getElementById('copyQrLink').style.display = 'inline-block';
         });
-        document.getElementById('copyQrLink').addEventListener('click', () => { navigator.clipboard.writeText(document.getElementById('qrUrl').textContent); toast('Link copied!'); });
+        document.getElementById('copyQrLink').addEventListener('click', () => {
+            navigator.clipboard.writeText(document.getElementById('qrUrl').textContent);
+            toast('Link copied!');
+        });
         document.getElementById('generateTableQrBtn').addEventListener('click', () => {
             const table = document.getElementById('tableNumberSelect').value;
             if (!table) return toast('Select a table number', true);
-            if (!cafeData.id) return toast('Cafe not ready', true);
+            if (!cafeData || !cafeData.id) return toast('Cafe not ready', true);
             const url = BASE_URL + cafeData.id + '&table=' + table;
             document.getElementById('tableQrDisplay').innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(url)}" width="250" height="250">`;
             document.getElementById('tableQrUrl').textContent = url;
             document.getElementById('copyTableQrLink').style.display = 'inline-block';
         });
-        document.getElementById('copyTableQrLink').addEventListener('click', () => { navigator.clipboard.writeText(document.getElementById('tableQrUrl').textContent); toast('Table link copied!'); });
+        document.getElementById('copyTableQrLink').addEventListener('click', () => {
+            navigator.clipboard.writeText(document.getElementById('tableQrUrl').textContent);
+            toast('Table link copied!');
+        });
         document.getElementById('downloadAllTableQrsBtn').addEventListener('click', async () => {
-            if (!cafeData.id) return toast('Cafe not ready', true);
+            if (!cafeData || !cafeData.id) return toast('Cafe not ready', true);
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             for (let i = 1; i <= 20; i++) {
@@ -453,43 +499,42 @@
             toast('PDF downloaded!');
         });
 
-        // Stats / Orders
-        async function loadStats() {
-            const [{count:i},{count:o},{count:v}] = await Promise.all([
-                _sb.from('menu_items').select('*',{count:'exact',head:true}).eq('cafe_id',cafeData.id),
-                _sb.from('orders').select('*',{count:'exact',head:true}).eq('cafe_id',cafeData.id),
-                _sb.from('menu_views_log').select('*',{count:'exact',head:true}).eq('cafe_id',cafeData.id)
-            ]);
-            document.getElementById('statViews').textContent = v||0;
-            document.getElementById('statItems').textContent = i||0;
-            document.getElementById('statOrders').textContent = o||0;
-        }
+        // ===== ORDERS =====
         async function loadOrders() {
-            const { data } = await _sb.from('orders').select('*').eq('cafe_id',cafeData.id).order('created_at',{ascending:false});
-            allOrders = data||[];
+            if (!cafeData) return;
+            const { data } = await _sb.from('orders').select('*').eq('cafe_id', cafeData.id).order('created_at', { ascending: false });
+            allOrders = data || [];
             renderOrders();
         }
         function renderOrders() {
             const search = document.getElementById('orderSearch').value.toLowerCase();
-            const filtered = allOrders.filter(o => (activeOrderTab==='new'&&o.status==='new')||(activeOrderTab==='accepted'&&o.status==='accepted')||(activeOrderTab==='completed'&&(o.status=='delivered'||o.status=='completed')))
-                .filter(o => !search || (o.table_number||'').toLowerCase().includes(search) || (o.customer_name||'').toLowerCase().includes(search));
+            const filtered = allOrders.filter(o => {
+                const statusMatch = (activeOrderTab === 'new' && o.status === 'new') ||
+                                  (activeOrderTab === 'accepted' && o.status === 'accepted') ||
+                                  (activeOrderTab === 'completed' && (o.status === 'delivered' || o.status === 'completed'));
+                const searchMatch = !search || (o.table_number || '').toString().includes(search) || (o.customer_name || '').toLowerCase().includes(search);
+                return statusMatch && searchMatch;
+            });
             const list = document.getElementById('ordersList');
             list.innerHTML = filtered.length ? filtered.map(o => {
-                const items = typeof o.items === 'string' ? JSON.parse(o.items) : o.items;
+                const items = typeof o.items === 'string' ? JSON.parse(o.items) : (o.items || []);
                 return `<div class="card" style="padding:0.8rem; margin-bottom:0.5rem;">
                     <div style="display:flex; justify-content:space-between;">
-                        <strong>Table ${o.table_number||'?'}</strong>
-                        <small>${o.customer_name||'Guest'} | ${new Date(o.created_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</small>
+                        <strong>Table ${o.table_number || '?'}</strong>
+                        <small>${o.customer_name || 'Guest'} | ${new Date(o.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small>
                     </div>
-                    <div style="font-size:0.8rem; margin:0.3rem 0;">${items.map(i=>i.name+' x'+(i.qty||1)).join(', ')}</div>
+                    <div style="font-size:0.8rem; margin:0.3rem 0;">${items.map(i => i.name + ' x' + (i.qty || 1)).join(', ')}</div>
                     <div style="display:flex; justify-content:space-between;">
                         <strong>₹${o.total}</strong>
-                        <div>${o.status==='new'?`<button class="btn btn-primary" onclick="updateOrder('${o.id}','accepted')">Accept</button>`:''}${o.status==='accepted'?`<button class="btn btn-primary" onclick="updateOrder('${o.id}','delivered')">Deliver</button>`:''}</div>
+                        <div>${o.status === 'new' ? `<button class="btn btn-primary" onclick="updateOrder('${o.id}','accepted')">Accept</button>` : ''}${o.status === 'accepted' ? `<button class="btn btn-primary" onclick="updateOrder('${o.id}','delivered')">Deliver</button>` : ''}</div>
                     </div>
                 </div>`;
             }).join('') : '<p style="color:var(--muted);">No orders</p>';
         }
-        window.updateOrder = async (id, status) => { await _sb.from('orders').update({status}).eq('id',id); loadOrders(); };
+        window.updateOrder = async (id, status) => {
+            await _sb.from('orders').update({ status }).eq('id', id);
+            loadOrders();
+        };
         document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', function() {
             document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
             this.classList.add('active');
@@ -498,25 +543,37 @@
         }));
         document.getElementById('orderSearch').addEventListener('input', renderOrders);
         document.getElementById('exportCsvBtn').addEventListener('click', () => {
-            const csv = 'Date,Table,Customer,Items,Total,Status\n' + allOrders.map(o => `${o.created_at},${o.table_number},${o.customer_name},${(JSON.parse(o.items)||[]).map(i=>i.name).join(';')},${o.total},${o.status}`).join('\n');
+            const csv = 'Date,Table,Customer,Items,Total,Status\n' + allOrders.map(o => `${o.created_at},${o.table_number},${o.customer_name},${(typeof o.items === 'string' ? JSON.parse(o.items) : o.items).map(i => i.name).join(';')},${o.total},${o.status}`).join('\n');
             const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv])); a.download = 'orders.csv'; a.click();
             toast('CSV exported');
         });
-
         function setupRealtime() {
-            if(realtimeChannel) _sb.removeChannel(realtimeChannel);
+            if (realtimeChannel) _sb.removeChannel(realtimeChannel);
             realtimeChannel = _sb.channel('orders-realtime')
-                .on('postgres_changes', {event:'INSERT', schema:'public', table:'orders', filter:`cafe_id=eq.${cafeData.id}`}, payload => {
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders', filter: `cafe_id=eq.${cafeData.id}` }, payload => {
                     allOrders.unshift(payload.new); renderOrders(); beep(); loadStats();
                 }).subscribe();
         }
 
-        // Items (full CRUD as in previous dashboard)
+        async function loadStats() {
+            if (!cafeData) return;
+            const [{ count: i }, { count: o }, { count: v }] = await Promise.all([
+                _sb.from('menu_items').select('*', { count: 'exact', head: true }).eq('cafe_id', cafeData.id),
+                _sb.from('orders').select('*', { count: 'exact', head: true }).eq('cafe_id', cafeData.id),
+                _sb.from('menu_views_log').select('*', { count: 'exact', head: true }).eq('cafe_id', cafeData.id)
+            ]);
+            document.getElementById('statItems').textContent = i || 0;
+            document.getElementById('statOrders').textContent = o || 0;
+            document.getElementById('statViews').textContent = v || 0;
+        }
+
+        // ===== ITEMS =====
         async function loadItems() {
-            const { data } = await _sb.from('menu_items').select('*').eq('cafe_id',cafeData.id).order('category');
-            allItems = data||[];
+            if (!cafeData) return;
+            const { data } = await _sb.from('menu_items').select('*').eq('cafe_id', cafeData.id).order('category');
+            allItems = data || [];
             renderItems();
-            const cats = [...new Set(allItems.map(i=>i.category).filter(Boolean))].sort();
+            const cats = [...new Set(allItems.map(i => i.category).filter(Boolean))].sort();
             const sel = document.getElementById('itemCategorySelect');
             sel.innerHTML = '<option value="Uncategorized">Uncategorized</option>' + cats.map(c => `<option value="${c}">${c}</option>`).join('') + '<option value="__new__">+ New</option>';
         }
@@ -527,20 +584,21 @@
                 <div style="display:flex; align-items:center; gap:0.8rem; padding:0.6rem; border-bottom:1px solid var(--glass-border);">
                     ${item.image_url ? `<img src="${item.image_url}" style="width:45px;height:45px;border-radius:8px;object-fit:cover;">` : ''}
                     <div style="flex:1;"><strong>${item.name}</strong><br><small>${item.category} | ₹${item.price}</small></div>
-                    <label class="switch"><input type="checkbox" ${item.available?'checked':''} onchange="toggleItem('${item.id}',this.checked)"><span class="slider"></span></label>
+                    <label class="switch"><input type="checkbox" ${item.available ? 'checked' : ''} onchange="toggleItem('${item.id}',this.checked)"><span class="slider"></span></label>
                     <button class="btn" onclick="editItem('${item.id}')">✏️</button>
                     <button class="btn" onclick="deleteItem('${item.id}')">🗑️</button>
                 </div>`).join('');
         }
-        window.toggleItem = async (id, checked) => { await _sb.from('menu_items').update({available:checked}).eq('id',id); };
-        window.deleteItem = async (id) => { if(confirm('Delete?')){ await _sb.from('menu_items').delete().eq('id',id); loadItems(); loadStats(); } };
+        window.toggleItem = async (id, checked) => { await _sb.from('menu_items').update({ available: checked }).eq('id', id); };
+        window.deleteItem = async (id) => {
+            if (confirm('Delete?')) { await _sb.from('menu_items').delete().eq('id', id); loadItems(); loadStats(); }
+        };
 
-        // Variant row helper
-        function createVariantRow(name='', price='') {
+        function createVariantRow(name = '', price = '') {
             const row = document.createElement('div');
-            row.style.display='flex'; row.style.gap='0.5rem'; row.style.marginBottom='0.4rem';
+            row.style.display = 'flex'; row.style.gap = '0.5rem'; row.style.marginBottom = '0.4rem';
             row.innerHTML = `<input class="var-name" placeholder="Size" value="${name}" style="flex:1;"><input class="var-price" type="number" placeholder="Price" value="${price}" style="flex:1;"><button type="button" class="btn remove-var" style="padding:0.3rem 0.6rem;">✕</button>`;
-            row.querySelector('.remove-var').addEventListener('click', ()=>row.remove());
+            row.querySelector('.remove-var').addEventListener('click', () => row.remove());
             return row;
         }
         function createDefaultVariantRow() {
@@ -548,113 +606,132 @@
                 document.getElementById('variantsContainer').appendChild(createVariantRow());
             }
         }
-        document.getElementById('addVariantBtn').addEventListener('click', ()=>{
+        document.getElementById('addVariantBtn').addEventListener('click', () => {
             document.getElementById('variantsContainer').appendChild(createVariantRow());
         });
-        createDefaultVariantRow();
+        document.getElementById('itemCategorySelect').addEventListener('change', function() {
+            const input = document.getElementById('itemCategoryInput');
+            if (this.value === '__new__') {
+                input.style.display = 'block'; input.value = '';
+            } else {
+                input.style.display = 'none';
+            }
+        });
 
         window.editItem = (id) => {
-            const item = allItems.find(i=>i.id===id);
-            if(!item) return;
+            const item = allItems.find(i => i.id === id);
+            if (!item) return;
             document.getElementById('editItemId').value = item.id;
             document.getElementById('itemName').value = item.name;
             document.getElementById('itemPrice').value = item.price;
             const catSel = document.getElementById('itemCategorySelect');
-            if ([...catSel.options].some(o=>o.value===item.category)) {
+            if ([...catSel.options].some(o => o.value === item.category)) {
                 catSel.value = item.category;
-                document.getElementById('itemCategoryInput').style.display='none';
+                document.getElementById('itemCategoryInput').style.display = 'none';
             } else {
                 catSel.value = '__new__';
-                document.getElementById('itemCategoryInput').style.display='block';
+                document.getElementById('itemCategoryInput').style.display = 'block';
                 document.getElementById('itemCategoryInput').value = item.category;
             }
-            document.getElementById('itemDiscount').value = item.discount||'';
-            document.getElementById('itemDesc').value = item.description||'';
-            document.getElementById('tagFeatured').checked = item.featured || (item.tags||'').split(',').includes('featured');
-            document.getElementById('tagStandard').checked = (item.tags||'').split(',').includes('standard');
-            document.getElementById('tagBest').checked = (item.tags||'').split(',').includes('best');
-            document.getElementById('tagSelling').checked = (item.tags||'').split(',').includes('bestselling');
-            document.querySelectorAll('.allergenCheck').forEach(c=>c.checked=(item.allergens||[]).includes(c.value));
-            document.querySelectorAll('.dietaryCheck').forEach(c=>c.checked=(item.dietary||[]).includes(c.value));
-            if(item.image_url){ document.getElementById('itemImagePreview').src=item.image_url; document.getElementById('itemImagePreview').style.display='block'; }
-            else document.getElementById('itemImagePreview').style.display='none';
-            document.getElementById('itemImageFile').value=''; document.getElementById('itemImageFile').dataset.autoUrl='';
+            document.getElementById('itemDiscount').value = item.discount || '';
+            document.getElementById('itemDesc').value = item.description || '';
+            document.getElementById('tagFeatured').checked = item.featured || (item.tags || '').split(',').includes('featured');
+            document.getElementById('tagStandard').checked = (item.tags || '').split(',').includes('standard');
+            document.getElementById('tagBest').checked = (item.tags || '').split(',').includes('best');
+            document.getElementById('tagSelling').checked = (item.tags || '').split(',').includes('bestselling');
+            document.querySelectorAll('.allergenCheck').forEach(c => c.checked = (item.allergens || []).includes(c.value));
+            document.querySelectorAll('.dietaryCheck').forEach(c => c.checked = (item.dietary || []).includes(c.value));
+            if (item.image_url) {
+                document.getElementById('itemImagePreview').src = item.image_url;
+                document.getElementById('itemImagePreview').style.display = 'block';
+            } else {
+                document.getElementById('itemImagePreview').style.display = 'none';
+            }
+            document.getElementById('itemImageFile').value = '';
+            document.getElementById('itemImageFile').dataset.autoUrl = '';
             const varContainer = document.getElementById('variantsContainer');
             varContainer.innerHTML = '';
             if (item.description?.startsWith('VAR::')) {
-                const parts = item.description.replace('VAR::','').split('|');
-                parts.forEach(p=>{ const [n,pr]=p.split('='); varContainer.appendChild(createVariantRow(n,pr)); });
-            } else varContainer.appendChild(createVariantRow());
+                const parts = item.description.replace('VAR::', '').split('|');
+                parts.forEach(p => { const [n, pr] = p.split('='); varContainer.appendChild(createVariantRow(n, pr)); });
+            } else {
+                varContainer.appendChild(createVariantRow());
+            }
             document.getElementById('addItemCard').classList.remove('collapsed');
-            document.getElementById('addItemCard').scrollIntoView({behavior:'smooth'});
-            document.getElementById('submitItemBtn').textContent='Update Item';
-            document.getElementById('cancelEditBtn').style.display='inline-block';
+            document.getElementById('addItemCard').scrollIntoView({ behavior: 'smooth' });
+            document.getElementById('submitItemBtn').textContent = 'Update Item';
+            document.getElementById('cancelEditBtn').style.display = 'inline-block';
         };
         document.getElementById('cancelEditBtn').addEventListener('click', resetForm);
         function resetForm() {
-            document.getElementById('editItemId').value='';
-            document.getElementById('itemName').value=''; document.getElementById('itemPrice').value='';
-            document.getElementById('itemCategorySelect').value='Uncategorized';
-            document.getElementById('itemCategoryInput').style.display='none';
-            document.getElementById('itemDiscount').value=''; document.getElementById('itemDesc').value='';
-            document.querySelectorAll('#tagFeatured,#tagStandard,#tagBest,#tagSelling').forEach(c=>c.checked=false);
-            document.querySelectorAll('.allergenCheck,.dietaryCheck').forEach(c=>c.checked=false);
-            document.getElementById('itemImagePreview').style.display='none';
-            document.getElementById('itemImageFile').value=''; document.getElementById('itemImageFile').dataset.autoUrl='';
-            document.getElementById('variantsContainer').innerHTML='';
+            document.getElementById('editItemId').value = '';
+            document.getElementById('itemName').value = ''; document.getElementById('itemPrice').value = '';
+            document.getElementById('itemCategorySelect').value = 'Uncategorized';
+            document.getElementById('itemCategoryInput').style.display = 'none';
+            document.getElementById('itemDiscount').value = ''; document.getElementById('itemDesc').value = '';
+            document.querySelectorAll('#tagFeatured,#tagStandard,#tagBest,#tagSelling').forEach(c => c.checked = false);
+            document.querySelectorAll('.allergenCheck,.dietaryCheck').forEach(c => c.checked = false);
+            document.getElementById('itemImagePreview').style.display = 'none';
+            document.getElementById('itemImageFile').value = ''; document.getElementById('itemImageFile').dataset.autoUrl = '';
+            document.getElementById('variantsContainer').innerHTML = '';
             createDefaultVariantRow();
-            document.getElementById('cancelEditBtn').style.display='none';
-            document.getElementById('submitItemBtn').textContent='Save Item';
+            document.getElementById('cancelEditBtn').style.display = 'none';
+            document.getElementById('submitItemBtn').textContent = 'Save Item';
         }
         async function saveItem(andClear) {
             const id = document.getElementById('editItemId').value;
             const name = document.getElementById('itemName').value.trim();
-            if(!name) return toast('Name required');
+            if (!name) return toast('Name required', true);
             let category = document.getElementById('itemCategorySelect').value;
-            if (category==='__new__') category = document.getElementById('itemCategoryInput').value.trim() || 'Uncategorized';
-            const price = parseFloat(document.getElementById('itemPrice').value)||0;
+            if (category === '__new__') category = document.getElementById('itemCategoryInput').value.trim() || 'Uncategorized';
+            const price = parseFloat(document.getElementById('itemPrice').value) || 0;
             const discount = document.getElementById('itemDiscount').value;
             const desc = document.getElementById('itemDesc').value;
             const tags = [];
-            if(document.getElementById('tagFeatured').checked) tags.push('featured');
-            if(document.getElementById('tagStandard').checked) tags.push('standard');
-            if(document.getElementById('tagBest').checked) tags.push('best');
-            if(document.getElementById('tagSelling').checked) tags.push('bestselling');
-            const allergens = Array.from(document.querySelectorAll('.allergenCheck:checked')).map(c=>c.value);
-            const dietary = Array.from(document.querySelectorAll('.dietaryCheck:checked')).map(c=>c.value);
+            if (document.getElementById('tagFeatured').checked) tags.push('featured');
+            if (document.getElementById('tagStandard').checked) tags.push('standard');
+            if (document.getElementById('tagBest').checked) tags.push('best');
+            if (document.getElementById('tagSelling').checked) tags.push('bestselling');
+            const allergens = Array.from(document.querySelectorAll('.allergenCheck:checked')).map(c => c.value);
+            const dietary = Array.from(document.querySelectorAll('.dietaryCheck:checked')).map(c => c.value);
             const varParts = [];
-            document.querySelectorAll('#variantsContainer > div').forEach(row=>{
+            document.querySelectorAll('#variantsContainer > div').forEach(row => {
                 const vName = row.querySelector('.var-name')?.value.trim();
                 const vPrice = row.querySelector('.var-price')?.value;
-                if(vName && vPrice) varParts.push(vName+'='+vPrice);
+                if (vName && vPrice) varParts.push(vName + '=' + vPrice);
             });
-            const finalDesc = varParts.length ? 'VAR::'+varParts.join('|') : desc;
+            const finalDesc = varParts.length ? 'VAR::' + varParts.join('|') : desc;
             let imageUrl = document.getElementById('itemImageFile').dataset.autoUrl || '';
             const file = document.getElementById('itemImageFile').files[0];
-            if(file) {
-                const form = new FormData(); form.append('image',file);
-                const res = await fetch(IMG_UPLOAD_URL, { method:'POST', headers:{'Authorization':`Bearer ${SUPABASE_ANON_KEY}`}, body:form });
-                const data = await res.json();
-                if(data.url) imageUrl = data.url;
+            if (file) {
+                // In production, upload to ImgBB via edge function; for now we keep placeholder
+                toast('Image upload will be available after edge function deployment', true);
             }
-            const itemData = { name, price, category, discount, description:finalDesc, featured:tags.includes('featured'), tags:tags.join(',')||null, allergens, dietary, image_url:imageUrl||null };
-            if(id) {
-                await _sb.from('menu_items').update(itemData).eq('id',id);
-                toast('Updated');
+            const itemData = {
+                name, price, category, discount, description: finalDesc,
+                featured: tags.includes('featured'), tags: tags.join(',') || null,
+                allergens, dietary, image_url: imageUrl || null
+            };
+            if (id) {
+                const { error } = await _sb.from('menu_items').update(itemData).eq('id', id);
+                if (error) { toast('Update failed: ' + error.message, true); return; }
+                toast('Item updated');
             } else {
-                await _sb.from('menu_items').insert({...itemData, cafe_id:cafeData.id});
-                toast('Added');
+                const { error } = await _sb.from('menu_items').insert({ ...itemData, cafe_id: cafeData.id });
+                if (error) { toast('Insert failed: ' + error.message, true); return; }
+                toast('Item added');
             }
             loadItems(); loadStats();
             resetForm();
-            if(andClear) { document.getElementById('itemName').value=''; document.getElementById('itemPrice').value=''; }
+            if (andClear) { document.getElementById('itemName').value = ''; document.getElementById('itemPrice').value = ''; }
         }
-        document.getElementById('submitItemBtn').addEventListener('click', ()=>saveItem(false));
-        document.getElementById('saveAndNextBtn').addEventListener('click', ()=>saveItem(true));
+        document.getElementById('submitItemBtn').addEventListener('click', () => saveItem(false));
+        document.getElementById('saveAndNextBtn').addEventListener('click', () => saveItem(true));
 
-        // News
+        // ===== NEWS =====
         async function loadNews() {
-            const { data } = await _sb.from('news_posts').select('*').eq('cafe_id', cafeData.id).order('created_at', {ascending:false});
+            if (!cafeData) return;
+            const { data } = await _sb.from('news_posts').select('*').eq('cafe_id', cafeData.id).order('created_at', { ascending: false });
             const newsList = document.getElementById('newsList');
             newsList.innerHTML = data.length ? data.map(p => `
                 <div class="news-item">
@@ -667,15 +744,55 @@
         document.getElementById('addNewsBtn').addEventListener('click', async () => {
             const title = document.getElementById('newsTitle').value.trim();
             const body = document.getElementById('newsBody').value.trim();
-            if(!title||!body) return toast('Fill title and body');
-            const { error } = await _sb.from('news_posts').insert({cafe_id: cafeData.id, title, body});
-            if(error) return toast('Failed: '+error.message, true);
+            if (!title || !body) return toast('Fill title and body', true);
+            const { error } = await _sb.from('news_posts').insert({ cafe_id: cafeData.id, title, body });
+            if (error) { toast('News post failed: ' + error.message, true); return; }
             document.getElementById('newsTitle').value = '';
             document.getElementById('newsBody').value = '';
             loadNews();
             toast('News posted!');
         });
 
+        // ===== AI SCANNER (placeholder – needs edge function) =====
+        document.getElementById('takePhotoBtn').addEventListener('click', () => {
+            document.getElementById('aiMenuImageFile').setAttribute('capture', 'environment');
+            document.getElementById('aiMenuImageFile').click();
+        });
+        document.getElementById('galleryUploadBtn').addEventListener('click', () => {
+            document.getElementById('aiMenuImageFile').removeAttribute('capture');
+            document.getElementById('aiMenuImageFile').click();
+        });
+        document.getElementById('aiMenuImageFile').addEventListener('change', function() {
+            for (const file of this.files) {
+                if (!selectedFiles.find(f => f.name === file.name && f.size === file.size)) selectedFiles.push(file);
+            }
+            updatePreviews();
+            this.value = '';
+        });
+        function updatePreviews() {
+            const container = document.getElementById('aiPreviews');
+            container.innerHTML = '';
+            selectedFiles.forEach((file, i) => {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    const div = document.createElement('div'); div.style.position = 'relative';
+                    div.innerHTML = `<img src="${e.target.result}" style="width:60px;height:60px;border-radius:8px;object-fit:cover;"><button style="position:absolute;top:-5px;right:-5px;background:#e74c3c;color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:10px;" onclick="selectedFiles.splice(${i},1);updatePreviews();">✕</button>`;
+                    container.appendChild(div);
+                };
+                reader.readAsDataURL(file);
+            });
+            document.getElementById('scanMenuBtn').style.display = selectedFiles.length ? 'inline-block' : 'none';
+        }
+        document.getElementById('scanMenuBtn').addEventListener('click', async () => {
+            toast('AI scanning will be available after you deploy the Gemini edge function', true);
+        });
+
+        // ===== AUTO IMAGE (placeholder) =====
+        document.getElementById('autoImageBtn').addEventListener('click', async () => {
+            toast('Auto image fetch requires edge function – coming soon', true);
+        });
+
+        // Start everything
         init();
     </script>
 </body>
