@@ -1,8 +1,10 @@
 {
+  "id": "/Digity/",
   "name": "Digity – Digital QR Menu",
   "short_name": "Digity",
   "description": "Free digital QR menu for cafés. Instant ordering, AI scanner, Telegram alerts.",
   "start_url": "/Digity/",
+  "scope": "/Digity/",
   "display": "standalone",
   "background_color": "#120b05",
   "theme_color": "#e8921a",
