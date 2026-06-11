@@ -80,6 +80,33 @@
         .slider:before { position:absolute; content:""; height:18px; width:18px; left:3px; bottom:3px; background:white; border-radius:50%; transition:0.3s; }
         input:checked+.slider { background:var(--amber); }
         input:checked+.slider:before { transform:translateX(20px); }
+
+        /* Settings modal */
+        .modal-overlay {
+            position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:100;
+            display:flex; align-items:center; justify-content:center; padding:1rem;
+            opacity:0; pointer-events:none; transition:opacity 0.3s;
+        }
+        .modal-overlay.open { opacity:1; pointer-events:auto; }
+        .modal {
+            background:var(--card-bg); border:1px solid var(--amber);
+            border-radius:var(--radius); padding:2rem; width:100%; max-width:600px;
+            max-height:90vh; overflow-y:auto; position:relative;
+        }
+        .modal-close {
+            position:absolute; top:1rem; right:1rem; background:none; border:none;
+            color:var(--text); font-size:1.5rem; cursor:pointer;
+        }
+
+        /* Paywall overlay */
+        .paywall-overlay {
+            position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:200;
+            display:flex; align-items:center; justify-content:center; padding:1rem;
+        }
+        .paywall-card {
+            background:var(--card-bg); border:1px solid var(--amber);
+            border-radius:var(--radius); padding:2rem; max-width:400px; text-align:center;
+        }
         @media (max-width:600px) {
             .header-row { flex-direction:column; align-items:flex-start; }
             .container { padding:1rem 0.8rem 90px; }
@@ -88,13 +115,66 @@
 </head>
 <body>
     <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Paywall overlay (hidden by default) -->
+    <div id="paywallOverlay" class="paywall-overlay" style="display:none;">
+        <div class="paywall-card">
+            <h2 style="color:var(--amber); margin-bottom:1rem;">🚫 Subscription Required</h2>
+            <p style="margin-bottom:1rem;">Your free trial has ended. Please pay to continue using Digity.</p>
+            <div id="paywallUpiId" style="font-weight:bold; margin-bottom:0.5rem;"></div>
+            <div id="paywallPrice" style="font-size:1.5rem; margin-bottom:1rem;"></div>
+            <img id="paywallQr" src="" style="max-width:200px; margin-bottom:1rem; display:none;">
+            <input id="upiTransactionId" placeholder="Enter UPI Transaction ID" style="margin-bottom:1rem;">
+            <button id="submitUpiBtn" class="btn-primary" style="width:100%;">Submit Payment</button>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal-overlay">
+        <div class="modal">
+            <button class="modal-close" id="closeSettingsModal">&times;</button>
+            <h3 style="color:var(--amber); margin-bottom:1rem;">⚙️ Settings</h3>
+            <input id="setCafeName" placeholder="Cafe Name">
+            <input id="setWhatsapp" placeholder="WhatsApp Number">
+            <textarea id="setDesc" rows="2" placeholder="Short Description"></textarea>
+            <div style="display:flex; gap:1rem; margin-bottom:1rem;">
+                <div><input type="color" id="setPrimary" value="#e8921a"> Primary</div>
+                <div><input type="color" id="setAccent" value="#2F3E46"> Accent</div>
+            </div>
+            <input id="setGooglePlaceId" placeholder="Google Place ID">
+            <label>Telegram Chat ID</label>
+            <div style="display:flex; gap:0.5rem; margin-bottom:1rem; align-items:center;">
+                <input id="setTelegramChatId" placeholder="e.g. -1001234567" style="flex:1;">
+                <button id="getFromBotBtn" class="btn btn-sm">🤖 Get from Bot</button>
+                <button id="testTelegramBtn" class="btn btn-sm">📡 Test</button>
+                <button id="openBotBtn" class="btn btn-sm" style="display:none;">💬 Open Bot</button>
+            </div>
+            <label>Cafe ID (share with staff)</label>
+            <div style="display:flex; gap:0.5rem; margin-bottom:1rem;">
+                <input id="cafeIdDisplay" readonly value="" style="flex:1; background:var(--glass);">
+                <button id="copyCafeIdBtn" class="btn" style="width:auto;">📋 Copy</button>
+            </div>
+            <input id="setInstagram" placeholder="Instagram URL">
+            <input id="setFacebook" placeholder="Facebook URL">
+            <input id="setGoogleReview" placeholder="Google Review Link">
+            <div style="display:flex; gap:1rem; align-items:center; margin-bottom:1rem;">
+                <label>Cafe Logo</label>
+                <button id="uploadLogoBtn" class="btn">📷 Upload</button>
+                <img id="logoPreview" style="max-width:60px; max-height:60px; border-radius:50%; display:none;">
+            </div>
+            <button id="saveSettingsBtn" class="btn-primary" style="width:100%;">Save Settings</button>
+        </div>
+    </div>
+
     <div class="container">
         <div class="header-row">
             <div class="logo">☕ Digity <span style="font-size:0.7rem;color:var(--muted);font-family:'Plus Jakarta Sans',sans-serif;">Dashboard</span></div>
             <div class="header-actions">
+                <button id="settingsIcon" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">⚙️</button>
                 <button id="themeToggle">🌙</button>
                 <button id="unmuteBtn">🔊</button>
                 <button id="testAlertBtn">📢</button>
+                <button id="sendReportBtn" class="btn-sm">📤 Report</button>
                 <button id="livePreviewBtn">👁️</button>
                 <button id="logoutBtn" style="color:#e74c3c;">↪</button>
             </div>
@@ -215,41 +295,6 @@
             </div>
         </div>
 
-        <!-- Settings -->
-        <div class="card collapsed">
-            <div class="card-title" onclick="this.parentElement.classList.toggle('collapsed')">⚙️ Settings <span>▼</span></div>
-            <div class="card-body">
-                <input id="setCafeName" placeholder="Cafe Name">
-                <input id="setWhatsapp" placeholder="WhatsApp Number">
-                <textarea id="setDesc" rows="2" placeholder="Short Description"></textarea>
-                <div style="display:flex; gap:1rem; margin-bottom:1rem;">
-                    <div><input type="color" id="setPrimary" value="#e8921a"> Primary</div>
-                    <div><input type="color" id="setAccent" value="#2F3E46"> Accent</div>
-                </div>
-                <input id="setGooglePlaceId" placeholder="Google Place ID">
-                <label>Telegram Chat ID</label>
-                <div style="display:flex; gap:0.5rem; margin-bottom:1rem; align-items:center;">
-                    <input id="setTelegramChatId" placeholder="e.g. -1001234567" style="flex:1;">
-                    <button id="getFromBotBtn" class="btn btn-sm">🤖 Get from Bot</button>
-                    <button id="testTelegramBtn" class="btn btn-sm">📡 Test</button>
-                </div>
-                <label>Cafe ID (share with staff)</label>
-                <div style="display:flex; gap:0.5rem; margin-bottom:1rem;">
-                    <input id="cafeIdDisplay" readonly value="" style="flex:1; background:var(--glass);">
-                    <button id="copyCafeIdBtn" class="btn" style="width:auto;">📋 Copy</button>
-                </div>
-                <input id="setInstagram" placeholder="Instagram URL">
-                <input id="setFacebook" placeholder="Facebook URL">
-                <input id="setGoogleReview" placeholder="Google Review Link">
-                <div style="display:flex; gap:1rem; align-items:center; margin-bottom:1rem;">
-                    <label>Cafe Logo</label>
-                    <button id="uploadLogoBtn" class="btn">📷 Upload</button>
-                    <img id="logoPreview" style="max-width:60px; max-height:60px; border-radius:50%; display:none;">
-                </div>
-                <button id="saveSettingsBtn" class="btn-primary" style="width:100%;">Save Settings</button>
-            </div>
-        </div>
-
         <!-- News / Micro-blog -->
         <div class="card collapsed">
             <div class="card-title" onclick="this.parentElement.classList.toggle('collapsed')">📰 Cafe News <span>▼</span></div>
@@ -272,6 +317,7 @@
         const AUTO_IMG_URL = 'https://dsbqhorzcbcrjivrgauk.supabase.co/functions/v1/auto-image';
         const IMG_UPLOAD_URL = 'https://dsbqhorzcbcrjivrgauk.supabase.co/functions/v1/image-upload';
         const GET_CHAT_ID_URL = 'https://dsbqhorzcbcrjivrgauk.supabase.co/functions/v1/get-chat-id';
+        const TELEGRAM_BOT_TOKEN = '8800425350:AAHtZSqYMNSXMLgtth6nmJYwS8uGXDLz7cg';
         const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         function toast(msg, isError = false) {
@@ -331,7 +377,121 @@
 
         let cafeData, allOrders=[], allItems=[], activeOrderTab='new', realtimeChannel;
         let selectedFiles = [];
+        let subSettings = null; // subscription settings from admin
 
+        // ---- Settings modal toggle ----
+        document.getElementById('settingsIcon').addEventListener('click', () => {
+            document.getElementById('settingsModal').classList.add('open');
+        });
+        document.getElementById('closeSettingsModal').addEventListener('click', () => {
+            document.getElementById('settingsModal').classList.remove('open');
+        });
+
+        // ---- Auto-save (debounced) ----
+        let saveTimeout;
+        function autoSave() {
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(async () => {
+                if (!cafeData) return;
+                const u = {
+                    cafe_name: document.getElementById('setCafeName').value.trim(),
+                    whatsapp: document.getElementById('setWhatsapp').value.trim(),
+                    description: document.getElementById('setDesc').value.trim(),
+                    primary_color: document.getElementById('setPrimary').value,
+                    accent_color: document.getElementById('setAccent').value,
+                    google_place_id: document.getElementById('setGooglePlaceId').value.trim(),
+                    telegram_chat_id: document.getElementById('setTelegramChatId').value.trim(),
+                    instagram_url: document.getElementById('setInstagram').value.trim(),
+                    facebook_url: document.getElementById('setFacebook').value.trim(),
+                    google_review_url: document.getElementById('setGoogleReview').value.trim()
+                };
+                const { error } = await _sb.from('cafes').update(u).eq('id', cafeData.id);
+                if (!error) {
+                    Object.assign(cafeData, u);
+                    toast('Settings saved');
+                }
+            }, 2000);
+        }
+
+        // Attach auto-save to all settings inputs
+        document.querySelectorAll('#setCafeName, #setWhatsapp, #setDesc, #setPrimary, #setAccent, #setGooglePlaceId, #setTelegramChatId, #setInstagram, #setFacebook, #setGoogleReview')
+            .forEach(input => input.addEventListener('input', autoSave));
+
+        // Manual save button triggers immediate save
+        document.getElementById('saveSettingsBtn').addEventListener('click', () => {
+            clearTimeout(saveTimeout);
+            autoSave();
+        });
+
+        // ---- Fetch subscription settings and check trial ----
+        async function checkSubscription() {
+            const { data: sub } = await _sb.from('subscription_settings').select('*').single();
+            subSettings = sub;
+            // If cafe's subscription is not active and trial ended
+            if (cafeData && (cafeData.subscription_status !== 'active' && cafeData.subscription_status !== 'trial') ||
+                (cafeData.subscription_status === 'trial' && new Date(cafeData.trial_ends_at) < new Date())) {
+                showPaywall();
+                return false;
+            }
+            // If trial but still valid, just allow
+            return true;
+        }
+
+        function showPaywall() {
+            document.getElementById('paywallOverlay').style.display = 'flex';
+            document.getElementById('paywallUpiId').textContent = 'UPI ID: ' + (subSettings?.upi_id || '');
+            document.getElementById('paywallPrice').textContent = '₹' + (subSettings?.price || '299');
+            if (subSettings?.qr_code_url) {
+                document.getElementById('paywallQr').src = subSettings.qr_code_url;
+                document.getElementById('paywallQr').style.display = 'block';
+            }
+        }
+
+        document.getElementById('submitUpiBtn').addEventListener('click', async () => {
+            const tid = document.getElementById('upiTransactionId').value.trim();
+            if (!tid) return toast('Enter transaction ID', true);
+            await _sb.from('cafes').update({
+                subscription_status: 'pending',
+                upi_transaction_id: tid
+            }).eq('id', cafeData.id);
+            toast('Payment submitted for approval');
+            document.getElementById('paywallOverlay').style.display = 'none';
+        });
+
+        // ---- Daily Report button ----
+        document.getElementById('sendReportBtn').addEventListener('click', async () => {
+            if (!cafeData?.telegram_chat_id) return toast('Set Telegram Chat ID first', true);
+            const since = new Date(Date.now() - 24*60*60*1000).toISOString();
+            const { data: orders } = await _sb.from('orders').select('*')
+                .eq('cafe_id', cafeData.id)
+                .gte('created_at', since)
+                .order('created_at', { ascending: false });
+
+            const totalOrders = orders.length;
+            const totalRevenue = orders.reduce((sum, o) => sum + (o.total || 0), 0);
+            let message = `📊 *Daily Report*\nCafe: ${cafeData.cafe_name}\nOrders: ${totalOrders}\nRevenue: ₹${totalRevenue}\n`;
+            if (orders.length > 0) {
+                message += `Last order: Table ${orders[0].table_number}, ₹${orders[0].total}`;
+            }
+            fetch('https://dsbqhorzcbcrjivrgauk.supabase.co/functions/v1/Telegram-notify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+                body: JSON.stringify({
+                    chat_id: cafeData.telegram_chat_id,
+                    cafe_name: cafeData.cafe_name,
+                    table: 'Report',
+                    customer: 'System',
+                    items: [{ name: 'Daily Summary', qty: 1 }],
+                    total: totalRevenue,
+                    message: message
+                })
+            }).then(r => r.json()).then(d => {
+                if (d.ok) toast('Report sent!');
+                else toast('Failed to send report', true);
+            });
+        });
+
+        // ---- Image compression ----
         function compressImage(file) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -361,6 +521,7 @@
             });
         }
 
+        // ---- Initialization ----
         async function init() {
             try {
                 const { data: { user } } = await _sb.auth.getUser();
@@ -377,8 +538,8 @@
                     cafe = newCafe;
                 }
                 cafeData = cafe;
-                toast('Dashboard ready');
 
+                // Fill settings fields
                 document.getElementById('setCafeName').value = cafeData.cafe_name || '';
                 document.getElementById('setWhatsapp').value = cafeData.whatsapp || '';
                 document.getElementById('setDesc').value = cafeData.description || '';
@@ -398,6 +559,23 @@
                 document.getElementById('copyCafeIdBtn').addEventListener('click', () => {
                     navigator.clipboard.writeText(cafeData.id); toast('Cafe ID copied!');
                 });
+
+                // Fetch bot username and setup Open Bot button
+                const openBotBtn = document.getElementById('openBotBtn');
+                try {
+                    const botInfoResp = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getMe`);
+                    const botInfo = await botInfoResp.json();
+                    if (botInfo.ok && botInfo.result.username) {
+                        const username = botInfo.result.username;
+                        openBotBtn.style.display = 'inline-block';
+                        openBotBtn.onclick = () => window.open(`https://t.me/${username}`, '_blank');
+                        toast('Bot connected: @' + username);
+                    } else {
+                        openBotBtn.style.display = 'none';
+                    }
+                } catch (e) {
+                    openBotBtn.style.display = 'none';
+                }
 
                 document.getElementById('getFromBotBtn').addEventListener('click', async () => {
                     toast('Fetching chat ID…');
@@ -437,36 +615,28 @@
                     }).catch(() => toast('Error sending test.', true));
                 });
 
+                // Check subscription
+                const canAccess = await checkSubscription();
+                if (!canAccess) {
+                    // Paywall is shown, but we still load the underlying dashboard (just hidden behind paywall)
+                    // We can stop loading orders/items to save resources, but for now let's let the paywall cover everything.
+                    // The rest of the init will still run, but the paywall overlay will cover the screen.
+                }
+
                 await Promise.all([loadStats(), loadOrders(), loadItems(), loadNews()]);
                 setupRealtime();
                 createDefaultVariantRow();
 
+                toast('Dashboard ready');
             } catch (err) {
                 toast('Fatal error: ' + err.message, true);
             }
         }
 
-        // Settings save
-        document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
-            if (!cafeData) return;
-            const u = {
-                cafe_name: document.getElementById('setCafeName').value.trim(),
-                whatsapp: document.getElementById('setWhatsapp').value.trim(),
-                description: document.getElementById('setDesc').value.trim(),
-                primary_color: document.getElementById('setPrimary').value,
-                accent_color: document.getElementById('setAccent').value,
-                google_place_id: document.getElementById('setGooglePlaceId').value.trim(),
-                telegram_chat_id: document.getElementById('setTelegramChatId').value.trim(),
-                instagram_url: document.getElementById('setInstagram').value.trim(),
-                facebook_url: document.getElementById('setFacebook').value.trim(),
-                google_review_url: document.getElementById('setGoogleReview').value.trim()
-            };
-            const { error } = await _sb.from('cafes').update(u).eq('id', cafeData.id);
-            if (error) toast('Save failed: ' + error.message, true);
-            else { Object.assign(cafeData, u); toast('Settings saved!'); }
-        });
+        // ---- Settings manual save (also covered by auto-save) ----
+        // Already handled by autoSave function
 
-        // Logo upload
+        // ---- Logo upload ----
         document.getElementById('uploadLogoBtn').addEventListener('click', () => {
             const input = document.createElement('input'); input.type='file'; input.accept='image/*';
             input.onchange = async (e) => {
@@ -486,7 +656,7 @@
             input.click();
         });
 
-        // QR Code
+        // ---- QR Code ----
         document.getElementById('generateQrBtn').addEventListener('click', () => {
             if (!cafeData?.id) return;
             const url = BASE_URL + cafeData.id;
@@ -529,7 +699,7 @@
             toast('PDF downloaded!');
         });
 
-        // Orders (unchanged)
+        // ---- Orders ----
         async function loadOrders() {
             if (!cafeData) return;
             const { data } = await _sb.from('orders').select('*').eq('cafe_id', cafeData.id).order('created_at', { ascending: false });
@@ -592,7 +762,7 @@
             document.getElementById('statViews').textContent = v || 0;
         }
 
-        // Items (unchanged)
+        // ---- Items ----
         async function loadItems() {
             if (!cafeData) return;
             const { data } = await _sb.from('menu_items').select('*').eq('cafe_id', cafeData.id).order('category');
@@ -743,7 +913,7 @@
         document.getElementById('submitItemBtn').addEventListener('click', () => saveItem(false));
         document.getElementById('saveAndNextBtn').addEventListener('click', () => saveItem(true));
 
-        // News
+        // ---- News ----
         async function loadNews() {
             if (!cafeData) return;
             const { data } = await _sb.from('news_posts').select('*').eq('cafe_id', cafeData.id).order('created_at', { ascending: false });
@@ -763,7 +933,7 @@
             else { document.getElementById('newsTitle').value = ''; document.getElementById('newsBody').value = ''; loadNews(); toast('News posted!'); }
         });
 
-        // AI Scanner (with debug)
+        // ---- AI Scanner (with compression) ----
         document.getElementById('takePhotoBtn').addEventListener('click', () => { document.getElementById('aiMenuImageFile').setAttribute('capture','environment'); document.getElementById('aiMenuImageFile').click(); });
         document.getElementById('galleryUploadBtn').addEventListener('click', () => { document.getElementById('aiMenuImageFile').removeAttribute('capture'); document.getElementById('aiMenuImageFile').click(); });
         document.getElementById('aiMenuImageFile').addEventListener('change', function() {
@@ -849,7 +1019,7 @@
             loadItems(); loadStats();
         });
 
-        // Auto image for items
+        // ---- Auto image for items ----
         document.getElementById('autoImageBtn').addEventListener('click', async () => {
             const name = document.getElementById('itemName').value.trim();
             if(!name) return toast('Enter item name');
