@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Digity Admin</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <style>
+        :root {
+            --primary: #e8921a; --bg: #0f0f13; --card: rgba(30,30,35,0.9);
+            --border: rgba(255,255,255,0.1); --text: #f0f0f0; --muted: #aaa;
+        }
+        body.light-mode {
+            --bg: #f8f7f4; --text: #1a1a1a; --muted: #5a5a5a;
+            --card: rgba(255,255,255,0.95); --border: rgba(0,0,0,0.15);
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:'Inter', system-ui, sans-serif; background:var(--bg); color:var(--text); padding:2rem; transition:0.4s; }
+        h1 { color:var(--primary); margin-bottom:2rem; }
+        .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:1rem; margin-bottom:2rem; }
+        .stat-card { background:var(--card); border:1px solid var(--border); border-radius:18px; padding:1.5rem; }
+        .stat-num { font-size:2.5rem; font-weight:800; color:var(--primary); }
+        .cafe-table { width:100%; border-collapse:collapse; margin-bottom:2rem; background:var(--card); border-radius:18px; overflow:hidden; }
+        th, td { padding:1rem; border-bottom:1px solid var(--border); text-align:left; }
+        th { background:var(--primary); color:#fff; }
+        .badge { padding:0.3rem 0.8rem; border-radius:12px; font-size:0.75rem; font-weight:600; }
+        .badge-trial { background:rgba(232,146,26,0.2); color:var(--primary); }
+        .badge-active { background:rgba(46,204,113,0.2); color:#2ecc71; }
+        .badge-pending { background:rgba(231,76,60,0.2); color:#e74c3c; }
+        .btn { padding:0.4rem 1rem; border-radius:8px; border:1px solid var(--border); background:var(--card); color:var(--text); cursor:pointer; font-size:0.8rem; }
+        .btn-primary { background:var(--primary); color:#fff; border:none; }
+        select, input { padding:0.5rem; border-radius:8px; border:1px solid var(--border); background:var(--card); color:var(--text); }
+        .theme-toggle { position:absolute; top:20px; right:20px; }
+    </style>
+</head>
+<body class="light-mode">
+    <button class="theme-toggle btn" onclick="toggleTheme()">🌙 Dark</button>
+    <h1>🛡️ Admin Panel</h1>
+    <div class="stats">
+        <div class="stat-card"><div class="stat-num" id="totalCafes">0</div><small>Total Cafes</small></div>
+        <div class="stat-card"><div class="stat-num" id="orders24h">0</div><small>Orders (24h)</small></div>
+        <div class="stat-card"><div class="stat-num" id="pendingUpi">0</div><small>Pending UPI</small></div>
+    </div>
+
+    <h2>All Cafes</h2>
+    <table class="cafe-table" id="cafeTable">
+        <thead><tr><th>Cafe Name</th><th>Status</th><th>Trial Ends</th><th>UPI</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+    </table>
+
+    <h2>Subscription Settings</h2>
+    <div style="background:var(--card); border-radius:18px; padding:1.5rem; margin-bottom:2rem;">
+        <input id="setUpiId" placeholder="UPI ID">
+        <input id="setPrice" type="number" placeholder="Price (₹)">
+        <input id="setQrCodeUrl" placeholder="QR Code Image URL">
+        <button id="saveSubSettings" class="btn-primary">Save</button>
+    </div>
+
+    <h2>Featured Cafes</h2>
+    <div style="display:flex; gap:1rem; align-items:center; margin-bottom:1rem;">
+        <select id="featureMode"><option value="auto">Auto-rotate</option><option value="manual">Manual</option></select>
+        <select id="feature1"></select>
+        <select id="feature2"></select>
+        <button class="btn-primary" id="saveFeaturedBtn">Save</button>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://dsbqhorzcbcrjivrgauk.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRzYnFob3J6Y2JjcmppdnJnYXVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMTQxMjAsImV4cCI6MjA5NjU5MDEyMH0.mSv--VVeaKzYSUGenYT5uYuIv85A4C0A0eyqT-DWv2o';
+        const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        function toggleTheme() {
+            document.body.classList.toggle('light-mode');
+            document.querySelector('.theme-toggle').textContent = document.body.classList.contains('light-mode') ? '🌙 Dark' : '☀️ Light';
+            localStorage.setItem('digity_theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
+        }
+        (function() {
+            const saved = localStorage.getItem('digity_theme');
+            if (saved === 'dark') document.body.classList.remove('light-mode');
+            else if (saved === 'light') document.body.classList.add('light-mode');
+            else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.body.classList.remove('light-mode');
+            document.querySelector('.theme-toggle').textContent = document.body.classList.contains('light-mode') ? '🌙 Dark' : '☀️ Light';
+        })();
+
+        async function init() {
+            const { data: { user } } = await _sb.auth.getUser();
+            if (!user) { window.location.href = 'auth.html'; return; }
+            const { data: profile } = await _sb.from('profiles').select('role').eq('id', user.id).single();
+            if (profile?.role !== 'admin') { alert('Unauthorized'); window.location.href = 'dashboard.html'; return; }
+
+            // Load stats
+            const { count: cafeCount } = await _sb.from('cafes').select('*', { count: 'exact', head: true });
+            const since = new Date(Date.now() - 24*60*60*1000).toISOString();
+            const { count: orderCount } = await _sb.from('orders').select('*', { count: 'exact', head: true }).gte('created_at', since);
+            const { count: upiPending } = await _sb.from('cafes').select('*', { count: 'exact', head: true }).eq('subscription_status', 'pending');
+            document.getElementById('totalCafes').textContent = cafeCount || 0;
+            document.getElementById('orders24h').textContent = orderCount || 0;
+            document.getElementById('pendingUpi').textContent = upiPending || 0;
+
+            // Cafes table
+            const { data: cafes } = await _sb.from('cafes').select('*').order('created_at', { ascending: false });
+            const tbody = document.querySelector('#cafeTable tbody');
+            tbody.innerHTML = cafes.map(c => {
+                const status = c.subscription_status || 'trial';
+                const badgeClass = status === 'active' ? 'active' : (status === 'trial' ? 'trial' : 'pending');
+                const upiCell = status === 'pending' ? `<button class="btn-primary" onclick="approveUpi('${c.id}')">Approve</button>` : (c.upi_transaction_id || 'N/A');
+                return `<tr>
+                    <td>${c.cafe_name}</td>
+                    <td><span class="badge badge-${badgeClass}">${status}</span></td>
+                    <td>${c.trial_ends_at ? new Date(c.trial_ends_at).toLocaleDateString() : 'N/A'}</td>
+                    <td>${upiCell}</td>
+                    <td><button class="btn" onclick="deleteCafe('${c.id}')">🗑️</button></td>
+                </tr>`;
+            }).join('');
+
+            // Subscription settings
+            const { data: sub } = await _sb.from('subscription_settings').select('*').single();
+            if (sub) {
+                document.getElementById('setUpiId').value = sub.upi_id || '';
+                document.getElementById('setPrice').value = sub.price || '';
+                document.getElementById('setQrCodeUrl').value = sub.qr_code_url || '';
+            }
+            document.getElementById('saveSubSettings').addEventListener('click', async () => {
+                await _sb.from('subscription_settings').upsert({
+                    id: 1,
+                    upi_id: document.getElementById('setUpiId').value,
+                    price: parseFloat(document.getElementById('setPrice').value) || 0,
+                    qr_code_url: document.getElementById('setQrCodeUrl').value
+                });
+                alert('Saved');
+            });
+
+            // Featured cafes
+            const featuredData = await _sb.from('featured_cafes').select('*').maybeSingle();
+            document.getElementById('featureMode').value = featuredData?.mode || 'auto';
+            const feature1 = document.getElementById('feature1');
+            const feature2 = document.getElementById('feature2');
+            const options = '<option value="">-- Select --</option>' + cafes.map(c => `<option value="${c.id}" ${c.id === featuredData?.cafe1_id ? 'selected' : ''}>${c.cafe_name}</option>`).join('');
+            feature1.innerHTML = options;
+            feature2.innerHTML = options;
+            if (featuredData?.cafe2_id) feature2.value = featuredData.cafe2_id;
+            document.getElementById('saveFeaturedBtn').addEventListener('click', async () => {
+                const mode = document.getElementById('featureMode').value;
+                const cafe1 = document.getElementById('feature1').value;
+                const cafe2 = document.getElementById('feature2').value;
+                await _sb.from('featured_cafes').upsert({ id: 1, mode, cafe1_id: cafe1 || null, cafe2_id: cafe2 || null });
+                alert('Featured settings saved');
+            });
+        }
+
+        window.approveUpi = async (cafeId) => {
+            await _sb.from('cafes').update({ subscription_status: 'active' }).eq('id', cafeId);
+            init();
+        };
+        window.deleteCafe = async (cafeId) => {
+            if (confirm('Delete this cafe?')) {
+                await _sb.from('cafes').delete().eq('id', cafeId);
+                init();
+            }
+        };
+
+        init();
+    </script>
+</body>
+</html>
