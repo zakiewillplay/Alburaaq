@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Digity – Login / Sign Up</title>
+    <title>Digity – Login or Sign Up</title>
+    <meta name="description" content="Create your free Digity account and start building your digital QR menu. 1-month free trial, no credit card required.">
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="canonical" href="https://zakiewillplay.github.io/Digity/auth.html">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <style>
         :root {
@@ -168,6 +171,10 @@
 
         if (isRecovery) mode = 'recovery';
         updateUI();
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/Digity/sw.js').catch(() => {});
+        }
     </script>
 </body>
 </html>
