@@ -10,7 +10,8 @@
     <meta name="author" content="Digity">
     <link rel="canonical" href="https://zakiewillplay.github.io/Digity/">
     <meta name="google-site-verification" content="XRvTp0exsgXVrxi3KrhTlQxLiXozqw4WTafEL6vM5l4" />
-    
+    <link rel="manifest" href="/Digity/manifest.json">
+    <meta name="theme-color" content="#e8921a">
     <style>
         :root {
             --primary: #e8921a;
@@ -147,6 +148,9 @@
             localStorage.setItem('digity_theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
             applyTheme();
         });
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/Digity/sw.js').catch(() => {});
+        }
     </script>
 </body>
 </html>
