@@ -100,6 +100,17 @@
             margin-bottom:0.6rem; display:flex; justify-content:space-between; color:#fff;
         }
         @media (max-width:768px){ .phone-3d{ display:none; } }
+
+        /* Install banner */
+        #installBanner {
+            position:fixed; bottom:20px; left:20px; right:20px;
+            background:var(--card-bg); border:1px solid var(--primary);
+            border-radius:18px; padding:1rem; z-index:200; text-align:center;
+            display:none;
+        }
+        #installBanner button {
+            margin:0 0.3rem;
+        }
     </style>
 </head>
 <body class="light-mode">
@@ -130,6 +141,14 @@
         </div>
         <footer>© 2026 Digity – Built for cafés. Start your free trial.</footer>
     </div>
+
+    <!-- Install Banner -->
+    <div id="installBanner">
+        <p style="margin-bottom:0.8rem;">Install Digity on your phone for a native app experience.</p>
+        <button id="installBtn" class="btn" style="background:var(--primary); color:#fff; border:none; padding:0.6rem 1.5rem; font-size:0.9rem;">Install</button>
+        <button id="dismissBtn" class="btn" style="background:none; border:none; color:var(--muted); font-size:0.8rem;">Not now</button>
+    </div>
+
     <script>
         const themeToggle = document.getElementById('themeToggle');
         function applyTheme() {
@@ -148,9 +167,37 @@
             localStorage.setItem('digity_theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
             applyTheme();
         });
+
+        // Service Worker
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/Digity/sw.js').catch(() => {});
         }
+
+        // PWA Install Prompt
+        let deferredPrompt;
+        const banner = document.getElementById('installBanner');
+        const installBtn = document.getElementById('installBtn');
+        const dismissBtn = document.getElementById('dismissBtn');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            banner.style.display = 'block';
+        });
+
+        installBtn.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') console.log('User installed');
+                deferredPrompt = null;
+            }
+            banner.style.display = 'none';
+        });
+
+        dismissBtn.addEventListener('click', () => {
+            banner.style.display = 'none';
+        });
     </script>
 </body>
 </html>
