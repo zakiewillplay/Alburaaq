@@ -1,4 +1,4 @@
-# ☕ Digity – Free Digital QR Menu for Cafés
+#☕ Digity – Free Digital QR Menu for Cafés
 
 **Digity** gives your café a beautiful, instant digital menu that customers scan with their phone.  
 No app install, no paper menus, no waiting – just seamless ordering, real‑time kitchen alerts, and an AI‑powered menu scanner.
