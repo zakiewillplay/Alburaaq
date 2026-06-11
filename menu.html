@@ -434,7 +434,7 @@
                 logoContainer.style.display = 'none';
             }
 
-            // Load featured cafes (spotlight)
+            // Load featured cafes (spotlight) – now shows on ALL menus
             loadSpotlight();
 
             const { data: items } = await _sb.from('menu_items').select('*').eq('cafe_id', cafeId).eq('available', true).order('category');
@@ -455,10 +455,9 @@
             const ids = [featured.cafe1_id, featured.cafe2_id].filter(Boolean);
             const { data: cafes } = await _sb.from('cafes').select('id, cafe_name').in('id', ids);
             if (!cafes || cafes.length === 0) return;
-            // Don't show a cafe's own spotlight
-            const filtered = cafes.filter(c => c.id !== cafeId);
-            if (filtered.length === 0) return;
-            const spotlightHtml = filtered.map(c => `
+            
+            // No longer filter out the current café – show on all menus
+            const spotlightHtml = cafes.map(c => `
                 <div class="spotlight-card">
                     <span>✨</span>
                     <div>
@@ -676,7 +675,7 @@
                 }, 1500);
             }
 
-            // 📲 Telegram notification (with debug toasts)
+            // 📲 Telegram notification
             if (cafeData.telegram_chat_id) {
                 showToast('Sending Telegram notification...');
                 fetch(TELEGRAM_NOTIFY_URL, {
@@ -702,7 +701,7 @@
             }
         });
 
-        // Voice order (unchanged)
+        // Voice order
         let recognition = null;
         const voiceBtn = document.getElementById('voiceOrderBtn');
         voiceBtn.addEventListener('click', () => {
