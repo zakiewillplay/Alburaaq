@@ -259,11 +259,20 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        /* Ensure the floating buttons are above the ticker */
         .floating-cart { bottom: 80px; }
         .waiter-btn { bottom: 80px; }
-        /* Extra padding so the last menu item isn't hidden */
         .menu-content { padding-bottom: 120px !important; }
+        /* Spotlight card */
+        .spotlight-card {
+            background: var(--card-bg); border: 1px solid var(--amber);
+            border-radius: 14px; padding: 1rem; margin-bottom: 1.5rem;
+            display: flex; gap: 1rem; align-items: center;
+        }
+        .spotlight-card a { color: var(--amber); text-decoration: none; font-weight: bold; }
+        .maintenance-msg {
+            text-align: center; padding: 4rem 2rem;
+        }
+        .maintenance-msg h2 { color: var(--amber); }
         @media (max-width:640px) {
             .menu-content { padding:1.2rem 1.2rem 140px; }
             .menu-item { gap:0.9rem !important; padding:1rem !important; border-radius:14px !important; }
@@ -304,19 +313,29 @@
         </div>
         <div id="busyBanner" style="display:none; background:#c0392b; color:#fff; text-align:center; padding:10px; position:fixed; top:0; left:0; right:0; z-index:100;">Heavy rush! Wait ~<span id="waitTimeDisplay"></span> mins</div>
         <div id="menuVisible">
-            <header class="menu-header">
-                <!-- Cafe logo -->
-                <div id="cafeLogoContainer" style="margin-bottom: 1rem; display: none;">
-                    <img id="cafeLogoImg" src="" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid var(--amber); box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
-                </div>
-                <p class="header-eyebrow">Est. 2024 &nbsp;·&nbsp; Welcome</p>
-                <h1 id="cafeNameDisplay">Loading…</h1>
-                <p id="cafeDesc"></p>
-                <div class="header-rule"><span></span><em>✦</em><span></span></div>
-            </header>
-            <div class="search-container"><div class="search-wrap"><span class="search-icon">🔍</span><input type="text" class="search-bar" id="searchBar" placeholder="Search dishes, drinks…"></div></div>
-            <div class="category-tabs" id="categoryTabs"></div>
-            <div id="menuSections"></div>
+            <!-- Spotlight container -->
+            <div id="spotlightContainer"></div>
+            <!-- Maintenance message -->
+            <div id="maintenanceMsg" style="display:none;" class="maintenance-msg">
+                <h2>🚧 Under Maintenance</h2>
+                <p>The menu is currently unavailable. Please check back later.</p>
+            </div>
+            <!-- Normal menu -->
+            <div id="normalMenu">
+                <header class="menu-header">
+                    <!-- Cafe logo -->
+                    <div id="cafeLogoContainer" style="margin-bottom: 1rem; display: none;">
+                        <img id="cafeLogoImg" src="" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid var(--amber); box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+                    </div>
+                    <p class="header-eyebrow">Est. 2024 &nbsp;·&nbsp; Welcome</p>
+                    <h1 id="cafeNameDisplay">Loading…</h1>
+                    <p id="cafeDesc"></p>
+                    <div class="header-rule"><span></span><em>✦</em><span></span></div>
+                </header>
+                <div class="search-container"><div class="search-wrap"><span class="search-icon">🔍</span><input type="text" class="search-bar" id="searchBar" placeholder="Search dishes, drinks…"></div></div>
+                <div class="category-tabs" id="categoryTabs"></div>
+                <div id="menuSections"></div>
+            </div>
         </div>
     </div>
 
@@ -395,6 +414,15 @@
                 document.getElementById('waitTimeDisplay').textContent = cafe.wait_time || 10;
             }
 
+            // Check subscription status – if not active/trial, show maintenance
+            if (cafe && (cafe.subscription_status !== 'active' && 
+                (cafe.subscription_status !== 'trial' || new Date(cafe.trial_ends_at) < new Date()))) {
+                document.getElementById('maintenanceMsg').style.display = 'block';
+                document.getElementById('normalMenu').style.display = 'none';
+                return;
+            }
+            document.getElementById('normalMenu').style.display = 'block';
+
             // Logo
             const logoContainer = document.getElementById('cafeLogoContainer');
             const logoImg = document.getElementById('cafeLogoImg');
@@ -406,6 +434,9 @@
                 logoContainer.style.display = 'none';
             }
 
+            // Load featured cafes (spotlight)
+            loadSpotlight();
+
             const { data: items } = await _sb.from('menu_items').select('*').eq('cafe_id', cafeId).eq('available', true).order('category');
             menuItems = items?.length ? items : [];
             if (tableParam) {
@@ -416,6 +447,27 @@
             updateCartUI();
             loadNews();
             setTimeout(subscribeToPush, 3000);
+        }
+
+        async function loadSpotlight() {
+            const { data: featured } = await _sb.from('featured_cafes').select('cafe1_id, cafe2_id').single();
+            if (!featured || (!featured.cafe1_id && !featured.cafe2_id)) return;
+            const ids = [featured.cafe1_id, featured.cafe2_id].filter(Boolean);
+            const { data: cafes } = await _sb.from('cafes').select('id, cafe_name').in('id', ids);
+            if (!cafes || cafes.length === 0) return;
+            // Don't show a cafe's own spotlight
+            const filtered = cafes.filter(c => c.id !== cafeId);
+            if (filtered.length === 0) return;
+            const spotlightHtml = filtered.map(c => `
+                <div class="spotlight-card">
+                    <span>✨</span>
+                    <div>
+                        <a href="${BASE_URL}${c.id}" target="_blank">${c.cafe_name}</a>
+                        <div style="font-size:0.8rem; color:var(--muted);">Discover more</div>
+                    </div>
+                </div>
+            `).join('');
+            document.getElementById('spotlightContainer').innerHTML = spotlightHtml;
         }
 
         function renderMenu(initial = false) {
@@ -624,8 +676,9 @@
                 }, 1500);
             }
 
-            // 📲 Telegram notification
+            // 📲 Telegram notification (with debug toasts)
             if (cafeData.telegram_chat_id) {
+                showToast('Sending Telegram notification...');
                 fetch(TELEGRAM_NOTIFY_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
@@ -637,11 +690,19 @@
                         items: orderItems,
                         total: total
                     })
-                }).catch(e => console.error('Telegram notify failed', e));
+                })
+                .then(r => r.json())
+                .then(d => {
+                    if (d.ok) showToast('Telegram sent!');
+                    else showToast('Telegram failed: ' + JSON.stringify(d));
+                })
+                .catch(e => showToast('Telegram error: ' + e.message));
+            } else {
+                showToast('No Telegram chat ID saved. Notification skipped.', true);
             }
         });
 
-        // Voice order
+        // Voice order (unchanged)
         let recognition = null;
         const voiceBtn = document.getElementById('voiceOrderBtn');
         voiceBtn.addEventListener('click', () => {
