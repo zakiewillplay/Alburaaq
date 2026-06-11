@@ -190,11 +190,11 @@
         .qty-num { font-weight:700; font-size:0.98rem; min-width:22px; text-align:center; transition:transform 0.18s cubic-bezier(0.4,0,0.2,1); }
         .qty-num.bump { animation:numBump 0.28s cubic-bezier(0.4,0,0.2,1); }
         @keyframes numBump { 0%,100%{transform:scale(1)} 50%{transform:scale(1.45)} }
-        .floating-cart { position:fixed; bottom:30px; right:30px; width:62px; height:62px; border-radius:50%; background:var(--amber); color:#fff; border:none; font-size:1.48rem; cursor:pointer; z-index:49; box-shadow:0 8px 28px rgba(232,146,26,0.42); display:flex; align-items:center; justify-content:center; transition:transform 0.3s cubic-bezier(0.4,0,0.2,1), box-shadow 0.3s ease; }
+        .floating-cart { position:fixed; bottom:90px; right:30px; width:62px; height:62px; border-radius:50%; background:var(--amber); color:#fff; border:none; font-size:1.48rem; cursor:pointer; z-index:49; box-shadow:0 8px 28px rgba(232,146,26,0.42); display:flex; align-items:center; justify-content:center; transition:transform 0.3s cubic-bezier(0.4,0,0.2,1), box-shadow 0.3s ease; }
         .floating-cart:hover { transform:scale(1.1); box-shadow:0 14px 38px rgba(232,146,26,0.55); }
         .floating-cart.pulse { animation:cartBounce 0.55s cubic-bezier(0.4,0,0.2,1); }
         @keyframes cartBounce { 0%,100%{transform:scale(1)} 30%{transform:scale(1.28)} 60%{transform:scale(0.92)} 80%{transform:scale(1.06)} }
-        .waiter-btn { position:fixed; bottom:30px; left:30px; width:62px; height:62px; border-radius:50%; background:linear-gradient(145deg, #c0392b, #96281b); color:#fff; border:none; font-size:1.35rem; cursor:pointer; z-index:48; box-shadow:0 8px 24px rgba(192,57,43,0.4); display:flex; align-items:center; justify-content:center; transition:transform 0.28s ease, box-shadow 0.28s ease; }
+        .waiter-btn { position:fixed; bottom:90px; left:30px; width:62px; height:62px; border-radius:50%; background:linear-gradient(145deg, #c0392b, #96281b); color:#fff; border:none; font-size:1.35rem; cursor:pointer; z-index:48; box-shadow:0 8px 24px rgba(192,57,43,0.4); display:flex; align-items:center; justify-content:center; transition:transform 0.28s ease, box-shadow 0.28s ease; }
         .waiter-btn:hover { transform:scale(1.1); box-shadow:0 14px 34px rgba(192,57,43,0.5); }
         .waiter-btn.ring { animation:waiterRing 0.6s ease; }
         @keyframes waiterRing { 0%,100%{transform:rotate(0deg)} 20%{transform:rotate(-18deg)} 50%{transform:rotate(18deg)} 75%{transform:rotate(-10deg)} }
@@ -243,13 +243,14 @@
             right: 0;
             background: var(--card-bg);
             border-top: 1px solid var(--amber);
-            padding: 0.8rem 1.2rem;
+            padding: 0.9rem 1.2rem;
             z-index: 45;
             display: flex;
             align-items: center;
             gap: 0.5rem;
             font-size: 0.85rem;
             font-weight: 500;
+            min-height: 50px;
         }
         .news-ticker i { color: var(--amber); font-size: 1.1rem; }
         .news-ticker span {
@@ -258,9 +259,13 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        .menu-content { padding-bottom: 60px !important; }
+        /* Ensure the floating buttons are above the ticker */
+        .floating-cart { bottom: 80px; }
+        .waiter-btn { bottom: 80px; }
+        /* Extra padding so the last menu item isn't hidden */
+        .menu-content { padding-bottom: 120px !important; }
         @media (max-width:640px) {
-            .menu-content { padding:1.2rem 1.2rem 100px; }
+            .menu-content { padding:1.2rem 1.2rem 140px; }
             .menu-item { gap:0.9rem !important; padding:1rem !important; border-radius:14px !important; }
             .img-wrap  { width:80px !important; height:80px !important; }
             .item-name { font-size:1.12rem !important; }
@@ -270,7 +275,7 @@
             .qty-btn { width:30px !important; height:30px !important; font-size:1rem !important; }
             .qty-num { font-size:0.9rem !important; min-width:18px !important; }
             header.menu-header h1 { font-size:2.6rem !important; }
-            .floating-cart, .waiter-btn { width:54px !important; height:54px !important; font-size:1.3rem !important; bottom:20px !important; }
+            .floating-cart, .waiter-btn { width:54px !important; height:54px !important; font-size:1.3rem !important; bottom:80px !important; }
             .floating-cart { right:18px !important; }
             .waiter-btn { left:18px !important; }
             .search-container { top:0 !important; }
@@ -300,6 +305,10 @@
         <div id="busyBanner" style="display:none; background:#c0392b; color:#fff; text-align:center; padding:10px; position:fixed; top:0; left:0; right:0; z-index:100;">Heavy rush! Wait ~<span id="waitTimeDisplay"></span> mins</div>
         <div id="menuVisible">
             <header class="menu-header">
+                <!-- Cafe logo -->
+                <div id="cafeLogoContainer" style="margin-bottom: 1rem; display: none;">
+                    <img id="cafeLogoImg" src="" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid var(--amber); box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+                </div>
                 <p class="header-eyebrow">Est. 2024 &nbsp;·&nbsp; Welcome</p>
                 <h1 id="cafeNameDisplay">Loading…</h1>
                 <p id="cafeDesc"></p>
@@ -379,12 +388,24 @@
             if (!cafeId) return document.getElementById('cafeNameDisplay').textContent = 'Invalid Menu Link';
             const { data: cafe } = await _sb.from('cafes').select('*').eq('id', cafeId).maybeSingle();
             cafeData = cafe;
-            document.getElementById('cafeNameDisplay').textContent = cafe?.cafe_name || 'Srinagar Roastery';
+            document.getElementById('cafeNameDisplay').textContent = cafe?.cafe_name || 'Cafe';
             document.getElementById('cafeDesc').textContent = cafe?.description || '';
             if (cafe?.busy_mode) {
                 document.getElementById('busyBanner').style.display = 'block';
                 document.getElementById('waitTimeDisplay').textContent = cafe.wait_time || 10;
             }
+
+            // Logo
+            const logoContainer = document.getElementById('cafeLogoContainer');
+            const logoImg = document.getElementById('cafeLogoImg');
+            if (cafe?.logo_url) {
+                logoImg.src = cafe.logo_url;
+                logoImg.onload = () => logoContainer.style.display = 'block';
+                logoImg.onerror = () => logoContainer.style.display = 'none';
+            } else {
+                logoContainer.style.display = 'none';
+            }
+
             const { data: items } = await _sb.from('menu_items').select('*').eq('cafe_id', cafeId).eq('available', true).order('category');
             menuItems = items?.length ? items : [];
             if (tableParam) {
@@ -594,6 +615,7 @@
             }
             setTimeout(() => { overlay.classList.remove('show'); overlay.querySelectorAll('.confetti-dot').forEach(d => d.remove()); }, 3600);
 
+            // Google review prompt
             if (cafeData.google_review_url) {
                 setTimeout(() => {
                     if (confirm('Enjoyed your experience? Leave us a Google review!')) {
@@ -602,6 +624,7 @@
                 }, 1500);
             }
 
+            // 📲 Telegram notification
             if (cafeData.telegram_chat_id) {
                 fetch(TELEGRAM_NOTIFY_URL, {
                     method: 'POST',
@@ -618,7 +641,7 @@
             }
         });
 
-        // Voice order (unchanged)
+        // Voice order
         let recognition = null;
         const voiceBtn = document.getElementById('voiceOrderBtn');
         voiceBtn.addEventListener('click', () => {
