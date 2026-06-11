@@ -94,6 +94,7 @@
                 <button id="themeToggle">🌙</button>
                 <button id="unmuteBtn">🔊</button>
                 <button id="testAlertBtn">📢</button>
+                <button id="testApiBtn" style="background:#e8921a; color:#fff;">🧪 Test API</button>
                 <button id="livePreviewBtn">👁️</button>
                 <button id="logoutBtn" style="color:#e74c3c;">↪</button>
             </div>
@@ -228,7 +229,12 @@
                     <div><input type="color" id="setAccent" value="#2F3E46"> Accent</div>
                 </div>
                 <input id="setGooglePlaceId" placeholder="Google Place ID">
-                <input id="setTelegramChatId" placeholder="Telegram Chat ID (for order alerts)">
+                <label>Telegram Chat ID</label>
+                <div style="display:flex; gap:0.5rem; margin-bottom:1rem;">
+                    <input id="setTelegramChatId" placeholder="e.g. -1001234567" style="flex:1;">
+                    <button id="getFromBotBtn" class="btn">🤖 Get from Bot</button>
+                    <button id="testTelegramBtn" class="btn">📡 Test</button>
+                </div>
                 <label>Cafe ID (share with staff)</label>
                 <div style="display:flex; gap:0.5rem; margin-bottom:1rem;">
                     <input id="cafeIdDisplay" readonly value="" style="flex:1; background:var(--glass);">
@@ -268,6 +274,7 @@
         const GEMINI_URL = 'https://dsbqhorzcbcrjivrgauk.supabase.co/functions/v1/gemini';
         const AUTO_IMG_URL = 'https://dsbqhorzcbcrjivrgauk.supabase.co/functions/v1/auto-image';
         const IMG_UPLOAD_URL = 'https://dsbqhorzcbcrjivrgauk.supabase.co/functions/v1/image-upload';
+        const GET_CHAT_ID_URL = 'https://dsbqhorzcbcrjivrgauk.supabase.co/functions/v1/get-chat-id';
         const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         function toast(msg, isError = false) {
@@ -275,7 +282,7 @@
             el.className = 'toast' + (isError ? ' error' : '');
             el.textContent = msg;
             document.getElementById('toastContainer').appendChild(el);
-            setTimeout(() => el.remove(), 4000);
+            setTimeout(() => el.remove(), 6000);
         }
 
         function applyTheme() {
@@ -319,6 +326,26 @@
         }
 
         document.getElementById('testAlertBtn').addEventListener('click', () => { beep(); toast('Beep!'); });
+        document.getElementById('testApiBtn').addEventListener('click', async () => {
+            toast('Testing API key...');
+            try {
+                const res = await fetch(GEMINI_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+                    body: JSON.stringify({ action: 'test' })
+                });
+                const data = await res.json();
+                if (data.error) {
+                    toast('API Error: ' + JSON.stringify(data.error), true);
+                } else if (data.candidates) {
+                    toast('✅ API key works!');
+                } else {
+                    toast('Unexpected response: ' + JSON.stringify(data).substring(0, 100), true);
+                }
+            } catch (err) {
+                toast('Network error: ' + err.message, true);
+            }
+        });
         document.getElementById('logoutBtn').addEventListener('click', () => _sb.auth.signOut().then(() => location.href='index.html'));
         document.getElementById('livePreviewBtn').addEventListener('click', () => {
             if(cafeData?.id) window.open(BASE_URL + cafeData.id, '_blank');
@@ -370,6 +397,46 @@
 
                 document.getElementById('copyCafeIdBtn').addEventListener('click', () => {
                     navigator.clipboard.writeText(cafeData.id); toast('Cafe ID copied!');
+                });
+
+                // Get from Bot button
+                document.getElementById('getFromBotBtn').addEventListener('click', async () => {
+                    toast('Fetching chat ID…');
+                    try {
+                        const res = await fetch(GET_CHAT_ID_URL, {
+                            headers: { 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+                        });
+                        const data = await res.json();
+                        if (data.chatId) {
+                            document.getElementById('setTelegramChatId').value = data.chatId;
+                            toast('Chat ID filled!');
+                        } else {
+                            toast('No messages yet. Send a message to your bot first.', true);
+                        }
+                    } catch (err) {
+                        toast('Error fetching chat ID.', true);
+                    }
+                });
+
+                // Test Telegram button
+                document.getElementById('testTelegramBtn').addEventListener('click', () => {
+                    const chatId = document.getElementById('setTelegramChatId').value.trim();
+                    if (!chatId) return toast('Enter a chat ID first', true);
+                    fetch('https://dsbqhorzcbcrjivrgauk.supabase.co/functions/v1/Telegram-notify', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+                        body: JSON.stringify({
+                            chat_id: chatId,
+                            cafe_name: 'Test',
+                            table: '0',
+                            customer: 'Test',
+                            items: [{ name: 'Test item', qty: 1 }],
+                            total: 0
+                        })
+                    }).then(r => r.json()).then(d => {
+                        if (d.ok) toast('Test message sent!');
+                        else toast('Failed to send test.', true);
+                    }).catch(() => toast('Error sending test.', true));
                 });
 
                 await Promise.all([loadStats(), loadOrders(), loadItems(), loadNews()]);
@@ -737,7 +804,7 @@
             if (!cafeData.id) return toast('Cafe not ready', true);
             if (selectedFiles.length === 0) return toast('No images selected', true);
             const statusEl = document.getElementById('aiScannerStatus');
-            statusEl.innerHTML = '<span style="display:inline-block; width:16px; height:16px; border:2px solid rgba(255,255,255,0.3); border-radius:50%; border-top-color:var(--amber); animation: spin 1s ease-in-out infinite; margin-right:8px;"></span> Scanning 0/' + selectedFiles.length + ' images...';
+            statusEl.innerHTML = 'Scanning...';
             statusEl.style.color = 'var(--amber)';
             document.getElementById('scanMenuBtn').disabled = true;
             let allInsertedItems = [];
@@ -753,6 +820,7 @@
                     });
                     const result = await response.json();
                     if (!response.ok) throw new Error(result.error || result.message || `HTTP ${response.status}`);
+                    if (result.error) throw new Error(result.error.detail ? JSON.stringify(result.error.detail) : result.error);
                     const items = result.items;
                     if (items && items.length > 0) {
                         const inserts = items.map(item => {
@@ -766,7 +834,6 @@
                         allInsertedItems = allInsertedItems.concat(inserts);
                     }
                     processedCount++;
-                    statusEl.innerHTML = '<span style="display:inline-block; width:16px; height:16px; border:2px solid rgba(255,255,255,0.3); border-radius:50%; border-top-color:var(--amber); animation: spin 1s ease-in-out infinite; margin-right:8px;"></span> Scanning ' + processedCount + '/' + selectedFiles.length + ' images...';
                 } catch (err) {
                     console.error('Error on image ' + (i + 1), err);
                     toast(`Image ${i + 1} failed: ${err.message}`, true);
