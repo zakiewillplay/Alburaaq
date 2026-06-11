@@ -135,13 +135,12 @@
         })();
 
         async function init() {
-            // Verify admin
             const { data: { user } } = await _sb.auth.getUser();
             if (!user) { window.location.href = 'auth.html'; return; }
             const { data: profile } = await _sb.from('profiles').select('role').eq('id', user.id).single();
             if (profile?.role !== 'admin') { alert('Unauthorized'); window.location.href = 'dashboard.html'; return; }
 
-            // Load stats
+            // Stats
             const { count: cafeCount } = await _sb.from('cafes').select('*', { count: 'exact', head: true });
             const since = new Date(Date.now() - 24*60*60*1000).toISOString();
             const { count: orderCount } = await _sb.from('orders').select('*', { count: 'exact', head: true }).gte('created_at', since);
@@ -150,7 +149,7 @@
             document.getElementById('orders24h').textContent = orderCount || 0;
             document.getElementById('pendingUpi').textContent = pendingCount || 0;
 
-            // Load cafes
+            // Cafes table
             await loadCafes();
 
             // Subscription settings
@@ -160,7 +159,6 @@
                 document.getElementById('setPrice').value = sub.price || '';
                 document.getElementById('setQrCodeUrl').value = sub.qr_code_url || '';
             }
-
             document.getElementById('saveSubSettings').addEventListener('click', async () => {
                 const upi_id = document.getElementById('setUpiId').value.trim();
                 const price = parseFloat(document.getElementById('setPrice').value) || 0;
@@ -180,7 +178,6 @@
             feature1.innerHTML = options;
             feature2.innerHTML = options;
             if (featuredData?.cafe2_id) feature2.value = featuredData.cafe2_id;
-
             document.getElementById('saveFeaturedBtn').addEventListener('click', async () => {
                 const mode = document.getElementById('featureMode').value;
                 const cafe1 = document.getElementById('feature1').value || null;
@@ -214,7 +211,6 @@
             if (error) alert('Error: ' + error.message);
             else { alert('Approved!'); loadCafes(); init(); }
         };
-
         window.deleteCafe = async (cafeId) => {
             if (!confirm('Delete this cafe? This cannot be undone.')) return;
             const { error } = await _sb.from('cafes').delete().eq('id', cafeId);
@@ -223,6 +219,9 @@
         };
 
         init();
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/Digity/sw.js').catch(() => {});
+        }
     </script>
 </body>
 </html>
