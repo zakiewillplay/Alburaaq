@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Digity – Free Digital QR Menu for Cafés</title>
-    <meta name="description" content="Digity gives your café a free digital QR menu with instant ordering, AI menu scanner, and real-time Telegram alerts. Start your 1-month free trial.">
-    <meta name="keywords" content="QR menu, cafe ordering, digital menu, restaurant QR, free QR menu, AI menu scanner, cafe management, Digity">
+    <meta name="description" content="Digity gives your café a free digital QR menu with instant ordering, AI menu scanner, and real-time Telegram alerts. Download the app or start your 1-month free trial.">
+    <meta name="keywords" content="QR menu, cafe ordering, digital menu, restaurant QR, free QR menu, AI menu scanner, cafe management, Digity app">
     <meta name="robots" content="index, follow">
     <meta name="author" content="Digity">
     <link rel="canonical" href="https://zakiewillplay.github.io/Digity/">
@@ -54,7 +54,7 @@
             cursor:pointer;
             font-size:0.9rem;
         }
-        .hero { text-align:center; padding:5rem 1rem 4rem; }
+        .hero { text-align:center; padding:5rem 1rem 2rem; }
         .hero h1 {
             font-size:clamp(3rem,8vw,5rem);
             font-weight:800;
@@ -71,6 +71,21 @@
             font-weight:700; text-decoration:none; transition:0.2s;
         }
         .btn:hover { transform:translateY(-3px); box-shadow:0 15px 35px rgba(232,146,26,0.5); }
+        .btn-outline {
+            background:transparent;
+            border:2px solid var(--primary);
+            color:var(--primary);
+            padding:0.9rem 2.4rem;
+            border-radius:50px;
+            font-weight:700;
+            text-decoration:none;
+            display:inline-block;
+            transition:0.2s;
+        }
+        .btn-outline:hover {
+            background:var(--primary);
+            color:#fff;
+        }
         .features { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:2rem; padding:2rem 0; }
         .feature-card {
             background:var(--card-bg); border:1px solid var(--border);
@@ -81,6 +96,19 @@
         .feature-card .icon { font-size:3rem; margin-bottom:1rem; }
         .feature-card h3 { color:var(--primary); margin-bottom:0.5rem; }
         footer { text-align:center; padding:2rem; color:var(--muted); }
+
+        /* App download section */
+        .app-download {
+            text-align:center;
+            padding:3rem 1rem;
+            background:linear-gradient(135deg, rgba(232,146,26,0.1), rgba(245,180,69,0.1));
+            border-radius:30px;
+            margin:2rem 0;
+        }
+        .app-download h2 { color:var(--primary); margin-bottom:0.5rem; }
+        .app-download p { color:var(--muted); margin-bottom:1.5rem; }
+        .download-buttons { display:flex; gap:1rem; flex-wrap:wrap; justify-content:center; }
+
         .phone-3d { perspective:1200px; width:260px; height:520px; margin:0 auto; position:relative; }
         .phone-body {
             width:260px; height:520px; background:#1c1c1e; border-radius:2.5rem; padding:0.5rem;
@@ -100,17 +128,6 @@
             margin-bottom:0.6rem; display:flex; justify-content:space-between; color:#fff;
         }
         @media (max-width:768px){ .phone-3d{ display:none; } }
-
-        /* Install banner */
-        #installBanner {
-            position:fixed; bottom:20px; left:20px; right:20px;
-            background:var(--card-bg); border:1px solid var(--primary);
-            border-radius:18px; padding:1rem; z-index:200; text-align:center;
-            display:none;
-        }
-        #installBanner button {
-            margin:0 0.3rem;
-        }
     </style>
 </head>
 <body class="light-mode">
@@ -124,6 +141,21 @@
             <p>Free digital QR menus for your café.<br>Beautiful, instant, and your brand.</p>
             <a href="auth.html" class="btn">Get Started Free</a>
         </section>
+
+        <!-- App Download Section -->
+        <div class="app-download">
+            <h2>📲 Get the App</h2>
+            <p>Download the native Android app for a faster, full‑screen experience.</p>
+            <div class="download-buttons">
+                <a href="https://github.com/zakiewillplay/Digity/releases/download/v1/digity.apk" class="btn" target="_blank">⬇️ Download for Android</a>
+                <a href="#" class="btn-outline" onclick="alert('iOS version coming soon!')">🍎 iOS (Soon)</a>
+            </div>
+            <p style="font-size:0.75rem; color:var(--muted); margin-top:1rem; word-break:break-all;">
+                🔐 <strong>SHA‑256:</strong> 94ae5916a4b38623308d6b84f2b3f53dcbe6f8aa296447c3406df23265e54d6b<br>
+                <em>Verify the file after download to ensure it hasn’t been modified.</em>
+            </p>
+        </div>
+
         <div class="features">
             <div class="feature-card"><div class="icon">🚀</div><h3>Instant QR Menu</h3><p>Generate a QR code in seconds. Customers scan and browse instantly.</p></div>
             <div class="feature-card"><div class="icon">📱</div><h3>Easy Ordering</h3><p>Customers order from their phone. You get real-time alerts.</p></div>
@@ -140,13 +172,6 @@
             </div>
         </div>
         <footer>© 2026 Digity – Built for cafés. Start your free trial.</footer>
-    </div>
-
-    <!-- Install Banner -->
-    <div id="installBanner">
-        <p style="margin-bottom:0.8rem;">Install Digity on your phone for a native app experience.</p>
-        <button id="installBtn" class="btn" style="background:var(--primary); color:#fff; border:none; padding:0.6rem 1.5rem; font-size:0.9rem;">Install</button>
-        <button id="dismissBtn" class="btn" style="background:none; border:none; color:var(--muted); font-size:0.8rem;">Not now</button>
     </div>
 
     <script>
@@ -168,36 +193,10 @@
             applyTheme();
         });
 
-        // Service Worker
+        // Service Worker for PWA fallback
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/Digity/sw.js').catch(() => {});
         }
-
-        // PWA Install Prompt
-        let deferredPrompt;
-        const banner = document.getElementById('installBanner');
-        const installBtn = document.getElementById('installBtn');
-        const dismissBtn = document.getElementById('dismissBtn');
-
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            banner.style.display = 'block';
-        });
-
-        installBtn.addEventListener('click', async () => {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                if (outcome === 'accepted') console.log('User installed');
-                deferredPrompt = null;
-            }
-            banner.style.display = 'none';
-        });
-
-        dismissBtn.addEventListener('click', () => {
-            banner.style.display = 'none';
-        });
     </script>
 </body>
-</html>
+</html> 
