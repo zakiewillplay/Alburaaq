@@ -282,7 +282,6 @@
             setTimeout(() => el.remove(), 6000);
         }
 
-        // Theme toggle
         function applyTheme() {
             const saved = localStorage.getItem('digity_theme');
             if(saved === 'dark' || (!saved && matchMedia('(prefers-color-scheme:dark)').matches)) {
@@ -300,7 +299,6 @@
         });
         applyTheme();
 
-        // Audio
         let audioCtx;
         let audioReady = localStorage.getItem('digity_unmuted') === 'true';
         const unmuteBtn = document.getElementById('unmuteBtn');
@@ -334,7 +332,6 @@
         let cafeData, allOrders=[], allItems=[], activeOrderTab='new', realtimeChannel;
         let selectedFiles = [];
 
-        // Image compression helper
         function compressImage(file) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -402,7 +399,6 @@
                     navigator.clipboard.writeText(cafeData.id); toast('Cafe ID copied!');
                 });
 
-                // Get from Bot button
                 document.getElementById('getFromBotBtn').addEventListener('click', async () => {
                     toast('Fetching chat ID…');
                     try {
@@ -421,7 +417,6 @@
                     }
                 });
 
-                // Test Telegram button
                 document.getElementById('testTelegramBtn').addEventListener('click', () => {
                     const chatId = document.getElementById('setTelegramChatId').value.trim();
                     if (!chatId) return toast('Enter a chat ID first', true);
@@ -471,7 +466,7 @@
             else { Object.assign(cafeData, u); toast('Settings saved!'); }
         });
 
-        // Logo upload (only upload, no auto-fetch)
+        // Logo upload
         document.getElementById('uploadLogoBtn').addEventListener('click', () => {
             const input = document.createElement('input'); input.type='file'; input.accept='image/*';
             input.onchange = async (e) => {
@@ -491,7 +486,7 @@
             input.click();
         });
 
-        // QR Code (main)
+        // QR Code
         document.getElementById('generateQrBtn').addEventListener('click', () => {
             if (!cafeData?.id) return;
             const url = BASE_URL + cafeData.id;
@@ -502,8 +497,6 @@
         document.getElementById('copyQrLink').addEventListener('click', () => {
             navigator.clipboard.writeText(document.getElementById('qrUrl').textContent); toast('Link copied!');
         });
-
-        // Table QR – using custom input
         document.getElementById('generateTableQrBtn').addEventListener('click', () => {
             const table = document.getElementById('customTableNumber').value.trim();
             if (!table || isNaN(table) || parseInt(table) < 1) return toast('Enter a valid table number', true);
@@ -536,7 +529,7 @@
             toast('PDF downloaded!');
         });
 
-        // Orders
+        // Orders (unchanged)
         async function loadOrders() {
             if (!cafeData) return;
             const { data } = await _sb.from('orders').select('*').eq('cafe_id', cafeData.id).order('created_at', { ascending: false });
@@ -599,7 +592,7 @@
             document.getElementById('statViews').textContent = v || 0;
         }
 
-        // Items
+        // Items (unchanged)
         async function loadItems() {
             if (!cafeData) return;
             const { data } = await _sb.from('menu_items').select('*').eq('cafe_id', cafeData.id).order('category');
@@ -770,7 +763,7 @@
             else { document.getElementById('newsTitle').value = ''; document.getElementById('newsBody').value = ''; loadNews(); toast('News posted!'); }
         });
 
-        // AI Scanner (with compression)
+        // AI Scanner (with debug)
         document.getElementById('takePhotoBtn').addEventListener('click', () => { document.getElementById('aiMenuImageFile').setAttribute('capture','environment'); document.getElementById('aiMenuImageFile').click(); });
         document.getElementById('galleryUploadBtn').addEventListener('click', () => { document.getElementById('aiMenuImageFile').removeAttribute('capture'); document.getElementById('aiMenuImageFile').click(); });
         document.getElementById('aiMenuImageFile').addEventListener('change', function() {
@@ -804,6 +797,7 @@
 
             let allInsertedItems = [];
             let processedCount = 0;
+            let lastDebug = '';
 
             for (let i = 0; i < selectedFiles.length; i++) {
                 const file = selectedFiles[i];
@@ -817,6 +811,7 @@
                     const result = await response.json();
                     if (!response.ok) throw new Error(result.error || result.message || `HTTP ${response.status}`);
                     if (result.error) throw new Error(typeof result.error === 'string' ? result.error : JSON.stringify(result.error));
+                    if (result.debug) lastDebug = result.debug;
                     const items = result.items;
                     if (items && items.length > 0) {
                         const inserts = items.map(item => {
@@ -841,7 +836,11 @@
                 const { error } = await _sb.from('menu_items').insert(allInsertedItems);
                 if (error) { statusEl.innerHTML = `❌ Failed to save items: ${error.message}`; statusEl.style.color = '#c0392b'; }
                 else { statusEl.innerHTML = `🎉 Success! ${allInsertedItems.length} items added from ${processedCount} image(s).`; statusEl.style.color = '#27ae60'; }
-            } else { statusEl.innerHTML = '❌ No items detected in any image.'; statusEl.style.color = '#c0392b'; }
+            } else {
+                statusEl.innerHTML = `❌ No items detected.${lastDebug ? ' AI says: ' + lastDebug : ''}`;
+                statusEl.style.color = '#c0392b';
+                if (lastDebug) toast('AI raw output: ' + lastDebug, true);
+            }
 
             document.getElementById('scanMenuBtn').disabled = false;
             selectedFiles = [];
