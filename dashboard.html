@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Digity Dashboard</title>
+    <title>Digity Dashboard – Manage Your Café Menu</title>
+    <meta name="description" content="Digity dashboard – manage your digital menu, orders, QR codes, AI scanner, settings, and café news.">
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="canonical" href="https://zakiewillplay.github.io/Digity/dashboard.html">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -116,7 +119,7 @@
 <body>
     <div class="toast-container" id="toastContainer"></div>
 
-    <!-- Paywall overlay (hidden by default) -->
+    <!-- Paywall overlay -->
     <div id="paywallOverlay" class="paywall-overlay" style="display:none;">
         <div class="paywall-card">
             <h2 style="color:var(--amber); margin-bottom:1rem;">🚫 Subscription Required</h2>
@@ -423,7 +426,7 @@
             autoSave();
         });
 
-        // ---- Open Bot button (direct link) ----
+        // ---- Open Bot button ----
         document.getElementById('openBotBtn').addEventListener('click', () => {
             window.open('https://t.me/DigityAlertbot', '_blank');
         });
@@ -1014,6 +1017,9 @@
         });
 
         init();
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/Digity/sw.js').catch(() => {});
+        }
     </script>
 </body>
 </html>
