@@ -147,7 +147,7 @@
                 <input id="setTelegramChatId" placeholder="e.g. -1001234567" style="flex:1;">
                 <button id="getFromBotBtn" class="btn btn-sm">🤖 Get from Bot</button>
                 <button id="testTelegramBtn" class="btn btn-sm">📡 Test</button>
-                <button id="openBotBtn" class="btn btn-sm" style="display:none;">💬 Open Bot</button>
+                <button id="openBotBtn" class="btn btn-sm">💬 Open Bot</button>
             </div>
             <label>Cafe ID (share with staff)</label>
             <div style="display:flex; gap:0.5rem; margin-bottom:1rem;">
@@ -317,7 +317,7 @@
         const AUTO_IMG_URL = 'https://dsbqhorzcbcrjivrgauk.supabase.co/functions/v1/auto-image';
         const IMG_UPLOAD_URL = 'https://dsbqhorzcbcrjivrgauk.supabase.co/functions/v1/image-upload';
         const GET_CHAT_ID_URL = 'https://dsbqhorzcbcrjivrgauk.supabase.co/functions/v1/get-chat-id';
-        const TELEGRAM_BOT_TOKEN = '8800425350:AAHtZSqYMNSXMLgtth6nmJYwS8uGXDLz7cg';
+        const TELEGRAM_NOTIFY_URL = 'https://dsbqhorzcbcrjivrgauk.supabase.co/functions/v1/Telegram-notify';
         const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         function toast(msg, isError = false) {
@@ -377,7 +377,7 @@
 
         let cafeData, allOrders=[], allItems=[], activeOrderTab='new', realtimeChannel;
         let selectedFiles = [];
-        let subSettings = null; // subscription settings from admin
+        let subSettings = null;
 
         // ---- Settings modal toggle ----
         document.getElementById('settingsIcon').addEventListener('click', () => {
@@ -423,17 +423,20 @@
             autoSave();
         });
 
+        // ---- Open Bot button (direct link) ----
+        document.getElementById('openBotBtn').addEventListener('click', () => {
+            window.open('https://t.me/DigityAlertbot', '_blank');
+        });
+
         // ---- Fetch subscription settings and check trial ----
         async function checkSubscription() {
             const { data: sub } = await _sb.from('subscription_settings').select('*').single();
             subSettings = sub;
-            // If cafe's subscription is not active and trial ended
             if (cafeData && (cafeData.subscription_status !== 'active' && cafeData.subscription_status !== 'trial') ||
                 (cafeData.subscription_status === 'trial' && new Date(cafeData.trial_ends_at) < new Date())) {
                 showPaywall();
                 return false;
             }
-            // If trial but still valid, just allow
             return true;
         }
 
@@ -473,7 +476,7 @@
             if (orders.length > 0) {
                 message += `Last order: Table ${orders[0].table_number}, ₹${orders[0].total}`;
             }
-            fetch('https://dsbqhorzcbcrjivrgauk.supabase.co/functions/v1/Telegram-notify', {
+            fetch(TELEGRAM_NOTIFY_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
                 body: JSON.stringify({
@@ -560,23 +563,7 @@
                     navigator.clipboard.writeText(cafeData.id); toast('Cafe ID copied!');
                 });
 
-                // Fetch bot username and setup Open Bot button
-                const openBotBtn = document.getElementById('openBotBtn');
-                try {
-                    const botInfoResp = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getMe`);
-                    const botInfo = await botInfoResp.json();
-                    if (botInfo.ok && botInfo.result.username) {
-                        const username = botInfo.result.username;
-                        openBotBtn.style.display = 'inline-block';
-                        openBotBtn.onclick = () => window.open(`https://t.me/${username}`, '_blank');
-                        toast('Bot connected: @' + username);
-                    } else {
-                        openBotBtn.style.display = 'none';
-                    }
-                } catch (e) {
-                    openBotBtn.style.display = 'none';
-                }
-
+                // Get from Bot button
                 document.getElementById('getFromBotBtn').addEventListener('click', async () => {
                     toast('Fetching chat ID…');
                     try {
@@ -595,10 +582,11 @@
                     }
                 });
 
+                // Test Telegram button
                 document.getElementById('testTelegramBtn').addEventListener('click', () => {
                     const chatId = document.getElementById('setTelegramChatId').value.trim();
                     if (!chatId) return toast('Enter a chat ID first', true);
-                    fetch('https://dsbqhorzcbcrjivrgauk.supabase.co/functions/v1/Telegram-notify', {
+                    fetch(TELEGRAM_NOTIFY_URL, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
                         body: JSON.stringify({
@@ -617,11 +605,7 @@
 
                 // Check subscription
                 const canAccess = await checkSubscription();
-                if (!canAccess) {
-                    // Paywall is shown, but we still load the underlying dashboard (just hidden behind paywall)
-                    // We can stop loading orders/items to save resources, but for now let's let the paywall cover everything.
-                    // The rest of the init will still run, but the paywall overlay will cover the screen.
-                }
+                // If paywall shown, rest of the dashboard is hidden behind the overlay
 
                 await Promise.all([loadStats(), loadOrders(), loadItems(), loadNews()]);
                 setupRealtime();
@@ -632,9 +616,6 @@
                 toast('Fatal error: ' + err.message, true);
             }
         }
-
-        // ---- Settings manual save (also covered by auto-save) ----
-        // Already handled by autoSave function
 
         // ---- Logo upload ----
         document.getElementById('uploadLogoBtn').addEventListener('click', () => {
