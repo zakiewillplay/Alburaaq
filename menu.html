@@ -274,6 +274,45 @@
         .spotlight-card a { color: var(--amber); text-decoration: none; font-weight: bold; }
         .maintenance-msg { text-align: center; padding: 4rem 2rem; }
         .maintenance-msg h2 { color: var(--amber); }
+        /* Dietary filter chips */
+        .dietary-filters {
+            display:flex; gap:0.5rem; overflow-x:auto; padding:0.5rem 0; margin-bottom:1rem;
+        }
+        .dietary-chip {
+            padding:0.4rem 1rem; border-radius:20px; border:1px solid var(--glass-border);
+            background:transparent; color:var(--muted); cursor:pointer; font-size:0.78rem;
+            font-weight:600; white-space:nowrap; transition:all 0.2s;
+        }
+        .dietary-chip.active { background:var(--amber); color:#fff; border-color:var(--amber); }
+        /* Wait time banner */
+        .wait-banner {
+            text-align:center; padding:0.6rem; background:rgba(232,146,26,0.1);
+            border-radius:12px; margin-bottom:1rem; font-size:0.85rem; color:var(--amber);
+        }
+        /* Reviews section */
+        .reviews-section {
+            margin-top:2rem; padding:1.5rem;
+            background:var(--card-bg); border:1px solid var(--card-border);
+            border-radius:var(--radius);
+        }
+        .review-item { border-bottom:1px solid var(--glass-border); padding:0.8rem 0; }
+        .stars { color:var(--amber); }
+        /* Loyalty badge */
+        .loyalty-badge {
+            position:fixed; bottom:160px; right:20px; background:var(--amber);
+            color:#fff; border-radius:50%; width:50px; height:50px;
+            display:flex; align-items:center; justify-content:center;
+            font-weight:800; font-size:0.8rem; z-index:47;
+            box-shadow:0 4px 12px rgba(232,146,26,0.4);
+        }
+        /* WhatsApp button */
+        .whatsapp-btn {
+            position:fixed; bottom:140px; right:30px; width:56px; height:56px;
+            border-radius:50%; background:#25d366; color:#fff; border:none;
+            font-size:1.4rem; cursor:pointer; z-index:49; display:flex;
+            align-items:center; justify-content:center; text-decoration:none;
+            box-shadow:0 4px 12px rgba(37,211,102,0.4);
+        }
         @media (max-width:640px) {
             .menu-content { padding:1.2rem 1.2rem 140px; }
             .menu-item { gap:0.9rem !important; padding:1rem !important; border-radius:14px !important; }
@@ -291,6 +330,8 @@
             .search-container { top:0 !important; }
             .category-tabs { top:56px !important; }
             .cart-inner { padding:1.2rem 1.4rem 1.6rem !important; }
+            .whatsapp-btn { bottom:130px; right:18px; }
+            .loyalty-badge { bottom:150px; right:18px; }
         }
     </style>
 </head>
@@ -313,6 +354,20 @@
             <button class="top-btn" id="voiceOrderBtn" title="Order by voice">🎤</button>
         </div>
         <div id="busyBanner" style="display:none; background:#c0392b; color:#fff; text-align:center; padding:10px; position:fixed; top:0; left:0; right:0; z-index:100;">Heavy rush! Wait ~<span id="waitTimeDisplay"></span> mins</div>
+
+        <!-- Estimated wait time -->
+        <div id="waitBanner" class="wait-banner" style="display:none;">
+            ⏱️ Estimated wait time: <span id="waitTime">--</span> minutes
+        </div>
+
+        <!-- Dietary filters -->
+        <div class="dietary-filters" id="dietaryFilters">
+            <button class="dietary-chip active" data-filter="all">All</button>
+            <button class="dietary-chip" data-filter="vegan">🌱 Vegan</button>
+            <button class="dietary-chip" data-filter="jain">🕉️ Jain</button>
+            <button class="dietary-chip" data-filter="gluten-free">🌾 GF</button>
+        </div>
+
         <div id="menuVisible">
             <!-- Spotlight container -->
             <div id="spotlightContainer"></div>
@@ -324,7 +379,6 @@
             <!-- Normal menu -->
             <div id="normalMenu">
                 <header class="menu-header">
-                    <!-- Cafe logo -->
                     <div id="cafeLogoContainer" style="margin-bottom: 1rem; display: none;">
                         <img id="cafeLogoImg" src="" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid var(--amber); box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
                     </div>
@@ -336,6 +390,12 @@
                 <div class="search-container"><div class="search-wrap"><span class="search-icon">🔍</span><input type="text" class="search-bar" id="searchBar" placeholder="Search dishes, drinks…"></div></div>
                 <div class="category-tabs" id="categoryTabs"></div>
                 <div id="menuSections"></div>
+
+                <!-- Reviews section -->
+                <div id="reviewsSection" class="reviews-section" style="display:none;">
+                    <h3>⭐ Customer Reviews</h3>
+                    <div id="reviewsList"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -351,6 +411,7 @@
             <div class="cart-total-row"><span class="cart-total-label">Total</span><span class="cart-total-val">₹<span id="cartTotal">0</span></span></div>
             <input class="cart-input" id="tableNumber" placeholder="Table Number *">
             <input class="cart-input" id="customerName" placeholder="Your name (optional)">
+            <input class="cart-input" id="specialInstructions" placeholder="Special instructions (e.g., no onions)">
             <button class="btn-order" id="placeOrderBtn">Place Order →</button>
             <button class="btn-close-cart" id="closeCartBtn">Close</button>
         </div>
@@ -367,6 +428,14 @@
         <i>📰</i>
         <span id="newsTickerText"></span>
     </div>
+
+    <!-- Loyalty badge -->
+    <div id="loyaltyBadge" class="loyalty-badge" style="display:none;" title="Loyalty Rewards">
+        🎁<span id="loyaltyCount">0</span>
+    </div>
+
+    <!-- WhatsApp button -->
+    <a id="whatsappBtn" class="whatsapp-btn" style="display:none;" href="#" target="_blank">💬</a>
 
     <script>
         const SUPABASE_URL = 'https://dsbqhorzcbcrjivrgauk.supabase.co';
@@ -386,6 +455,7 @@
         const tl = k => T[lang]?.[k] || k;
 
         let menuItems = [], cart = [], activeCategory = 'All', cafeData;
+        let dietaryFilter = 'all';
         try { cart = JSON.parse(localStorage.getItem('cafe_cart') || '[]'); } catch(e) { cart = []; }
 
         function showToast(msg) {
@@ -402,6 +472,16 @@
             const url = location.href;
             if (navigator.share) { try { await navigator.share({ title:document.title, url }); return; } catch(e) {} }
             try { await navigator.clipboard.writeText(url); showToast('Link copied!'); } catch(e) { showToast('Copy: ' + url); }
+        });
+
+        // Dietary filter buttons
+        document.querySelectorAll('.dietary-chip').forEach(chip => {
+            chip.addEventListener('click', function() {
+                document.querySelectorAll('.dietary-chip').forEach(c => c.classList.remove('active'));
+                this.classList.add('active');
+                dietaryFilter = this.dataset.filter;
+                renderMenu();
+            });
         });
 
         async function loadMenu() {
@@ -427,12 +507,35 @@
             // Logo
             const logoContainer = document.getElementById('cafeLogoContainer');
             const logoImg = document.getElementById('cafeLogoImg');
-            if (cafe?.logo_url) {
-                logoImg.src = cafe.logo_url;
-                logoImg.onload = () => logoContainer.style.display = 'block';
-                logoImg.onerror = () => logoContainer.style.display = 'none';
-            } else {
-                logoContainer.style.display = 'none';
+            if (cafe?.logo_url) { logoImg.src = cafe.logo_url; logoContainer.style.display = 'block'; }
+            else logoContainer.style.display = 'none';
+
+            // WhatsApp button
+            if (cafe?.whatsapp) {
+                const waBtn = document.getElementById('whatsappBtn');
+                waBtn.style.display = 'flex';
+                waBtn.href = `https://wa.me/${cafe.whatsapp.replace(/\D/g,'')}`;
+            }
+
+            // Estimated wait time
+            if (cafe?.avg_prep_time) {
+                const { count: pendingCount } = await _sb.from('orders').select('*', { count:'exact', head:true }).eq('cafe_id', cafeId).in('status', ['new','accepted']);
+                const waitMinutes = (pendingCount || 0) * (cafe.avg_prep_time || 5);
+                if (waitMinutes > 0) {
+                    document.getElementById('waitBanner').style.display = 'block';
+                    document.getElementById('waitTime').textContent = waitMinutes;
+                }
+            }
+
+            // Loyalty badge
+            if (cafe?.loyalty_enabled) {
+                const deviceId = localStorage.getItem('digity_device_id') || Date.now().toString();
+                localStorage.setItem('digity_device_id', deviceId);
+                const { data: loyalty } = await _sb.from('loyalty').select('*').eq('cafe_id', cafeId).eq('customer_identifier', deviceId).maybeSingle();
+                if (loyalty) {
+                    document.getElementById('loyaltyBadge').style.display = 'flex';
+                    document.getElementById('loyaltyCount').textContent = loyalty.orders_count;
+                }
             }
 
             // Spotlight
@@ -440,13 +543,11 @@
 
             const { data: items } = await _sb.from('menu_items').select('*').eq('cafe_id', cafeId).eq('available', true).order('category');
             menuItems = items?.length ? items : [];
-            if (tableParam) {
-                const t = document.getElementById('tableNumber');
-                t.value = tableParam; t.readOnly = true; t.style.opacity = '0.6';
-            }
+            if (tableParam) { const t = document.getElementById('tableNumber'); t.value = tableParam; t.readOnly = true; t.style.opacity = '0.6'; }
             renderMenu(true);
             updateCartUI();
             loadNews();
+            loadReviews();
             setTimeout(subscribeToPush, 3000);
         }
 
@@ -468,12 +569,33 @@
             document.getElementById('spotlightContainer').innerHTML = spotlightHtml;
         }
 
+        async function loadReviews() {
+            const { data: reviews } = await _sb.from('reviews').select('*').eq('cafe_id', cafeId).order('created_at', { ascending: false }).limit(5);
+            if (reviews && reviews.length > 0) {
+                document.getElementById('reviewsSection').style.display = 'block';
+                document.getElementById('reviewsList').innerHTML = reviews.map(r => `
+                    <div class="review-item">
+                        <div class="stars">${'⭐'.repeat(r.rating)}</div>
+                        <p>${r.comment || ''}</p>
+                        <small>— ${r.customer_name || 'Anonymous'}</small>
+                    </div>
+                `).join('');
+            }
+        }
+
         function renderMenu(initial = false) {
-            const search = document.getElementById('searchBar').value.toLowerCase();
-            const filtered = menuItems.filter(i => {
-                const hit = (i.name||'').toLowerCase().includes(search) || (i.description||'').toLowerCase().includes(search);
-                return hit && (activeCategory === 'All' || i.category === activeCategory);
+            let filtered = menuItems.filter(i => {
+                if (dietaryFilter === 'all') return true;
+                if (dietaryFilter === 'vegan') return (i.dietary || []).includes('vegan');
+                if (dietaryFilter === 'jain') return (i.dietary || []).includes('jain');
+                if (dietaryFilter === 'gluten-free') return !(i.allergens || []).includes('gluten');
+                return true;
             });
+
+            const search = document.getElementById('searchBar').value.toLowerCase();
+            filtered = filtered.filter(i => (i.name||'').toLowerCase().includes(search) || (i.description||'').toLowerCase().includes(search));
+            filtered = filtered.filter(i => activeCategory === 'All' || i.category === activeCategory);
+
             const cats = ['All', ...new Set(menuItems.map(i => i.category).filter(Boolean))].sort();
             document.getElementById('categoryTabs').innerHTML = cats.map(c => `<button class="cat-btn${c===activeCategory?' active':''}" data-cat="${c}">${c}</button>`).join('');
             document.querySelectorAll('.cat-btn').forEach(b => b.addEventListener('click', function() { activeCategory = this.dataset.cat; renderMenu(); }));
@@ -637,6 +759,7 @@
             if (!cart.length) return showToast(tl('cartEmpty'));
             const table = document.getElementById('tableNumber').value.trim() || tableParam || '';
             if (!table) return showToast(tl('tableReq'));
+            const specialInstructions = document.getElementById('specialInstructions').value.trim();
             const orderItems = cart.map(c => ({ name: c.name + (c.variant?' ('+c.variant+')':''), price: c.price, qty: c.qty }));
             const total = cart.reduce((s,c) => s + c.price*c.qty, 0);
             const { data: order, error } = await _sb.from('orders').insert({
@@ -645,9 +768,46 @@
                 table_number: table,
                 items: orderItems,
                 total: total,
-                status: 'new'
+                status: 'new',
+                special_instructions: specialInstructions
             }).select().maybeSingle();
             if (error) { showToast('Order failed: ' + error.message); return; }
+
+            // Upsell prompt (if enabled)
+            if (cafeData.upsell_enabled) {
+                const upsellItem = menuItems.find(i => !cart.find(c => c.id == i.id));
+                if (upsellItem) {
+                    setTimeout(() => {
+                        if (confirm(`Would you like to add a ${upsellItem.name} for ₹${upsellItem.price}?`)) {
+                            cart.push({ cartKey: upsellItem.id, id: upsellItem.id, name: upsellItem.name, price: upsellItem.price, qty: 1 });
+                            updateCartUI();
+                            renderMenu(false);
+                        }
+                    }, 1000);
+                }
+            }
+
+            // Loyalty update
+            if (cafeData.loyalty_enabled) {
+                const deviceId = localStorage.getItem('digity_device_id');
+                if (deviceId) {
+                    const { data: loyalty } = await _sb.from('loyalty').select('*').eq('cafe_id', cafeId).eq('customer_identifier', deviceId).maybeSingle();
+                    if (loyalty) {
+                        const newCount = loyalty.orders_count + 1;
+                        await _sb.from('loyalty').update({ orders_count: newCount }).eq('id', loyalty.id);
+                        document.getElementById('loyaltyCount').textContent = newCount;
+                        document.getElementById('loyaltyBadge').style.display = 'flex';
+                        if (newCount >= 10 && !loyalty.reward_claimed) {
+                            showToast('🎉 You earned a free reward! Show this to the staff.');
+                            await _sb.from('loyalty').update({ reward_claimed: true }).eq('id', loyalty.id);
+                        }
+                    } else {
+                        await _sb.from('loyalty').insert({ cafe_id: cafeId, customer_identifier: deviceId, orders_count: 1 });
+                        document.getElementById('loyaltyBadge').style.display = 'flex';
+                        document.getElementById('loyaltyCount').textContent = '1';
+                    }
+                }
+            }
 
             cart = [];
             updateCartUI();
@@ -665,7 +825,6 @@
             }
             setTimeout(() => { overlay.classList.remove('show'); overlay.querySelectorAll('.confetti-dot').forEach(d => d.remove()); }, 3600);
 
-            // Google review prompt
             if (cafeData.google_review_url) {
                 setTimeout(() => {
                     if (confirm('Enjoyed your experience? Leave us a Google review!')) {
@@ -674,7 +833,6 @@
                 }, 1500);
             }
 
-            // 📲 Telegram notification
             if (cafeData.telegram_chat_id) {
                 showToast('Sending Telegram notification...');
                 fetch(TELEGRAM_NOTIFY_URL, {
@@ -688,15 +846,18 @@
                         items: orderItems,
                         total: total
                     })
-                })
-                .then(r => r.json())
-                .then(d => {
+                }).then(r => r.json()).then(d => {
                     if (d.ok) showToast('Telegram sent!');
-                    else showToast('Telegram failed: ' + JSON.stringify(d));
-                })
-                .catch(e => showToast('Telegram error: ' + e.message));
+                }).catch(e => showToast('Telegram error: ' + e.message));
             } else {
                 showToast('No Telegram chat ID saved. Notification skipped.', true);
+            }
+
+            // Redirect to order tracking
+            if (order) {
+                setTimeout(() => {
+                    window.location.href = `track.html?id=${order.id}`;
+                }, 2000);
             }
         });
 
@@ -747,18 +908,16 @@
         async function loadNews() {
             if (!cafeId) return;
             const { data, error } = await _sb.from('news_posts')
-                .select('title')
+                .select('title, body')
                 .eq('cafe_id', cafeId)
                 .order('created_at', { ascending: false })
                 .limit(3);
-            if (error) {
-                console.error('News fetch error:', error);
-                return;
-            }
+            if (error) { console.error('News fetch error:', error); return; }
             if (data && data.length > 0) {
                 const ticker = document.getElementById('newsTicker');
                 ticker.style.display = 'flex';
-                document.getElementById('newsTickerText').textContent = data.map(p => p.title).join('  •  ');
+                // Show title and body in the ticker
+                document.getElementById('newsTickerText').innerHTML = data.map(p => `<strong>${p.title}</strong> – ${p.body}`).join(' &nbsp;|&nbsp; ');
             } else {
                 document.getElementById('newsTicker').style.display = 'none';
             }
