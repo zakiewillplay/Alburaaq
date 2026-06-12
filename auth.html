@@ -164,14 +164,16 @@
                 } else {
                     const { data, error } = await _supabase.auth.signInWithPassword({ email, password });
                     if (error) throw error;
-                    if (data.user) window.location.href = 'dashboard.html';
+                    if (data.user) {
+                        // FIXED: always redirect to dashboard after login
+                        window.location.href = 'dashboard.html';
+                    }
                 }
             } catch (err) { showToast(err.message, true); } finally { btn.disabled = false; }
         });
 
         if (isRecovery) mode = 'recovery';
         updateUI();
-
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/Digity/sw.js').catch(() => {});
         }
