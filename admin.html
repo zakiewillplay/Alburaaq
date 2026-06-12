@@ -202,7 +202,12 @@
                 const isExpired = trialEnds && trialEnds < new Date();
                 const displayStatus = isExpired && status === 'trial' ? 'expired' : status;
                 const badgeClass = displayStatus === 'active' ? 'active' : (displayStatus === 'trial' ? 'trial' : (displayStatus === 'pending' ? 'pending' : 'expired'));
-                const upiCell = status === 'pending' ? `<button class="btn btn-primary" onclick="approveUpi('${c.id}')">Approve</button>` : (c.upi_transaction_id || '—');
+
+                // Show transaction ID with Approve button if pending
+                const upiCell = (status === 'pending' && c.upi_transaction_id) 
+                    ? `${c.upi_transaction_id} <button class="btn btn-primary" onclick="approveUpi('${c.id}')">Approve</button>` 
+                    : (c.upi_transaction_id || (status === 'pending' ? 'No ID' : '—'));
+
                 const actions = `
                     <button class="btn btn-warning" onclick="endTrial('${c.id}')">End Trial</button>
                     <button class="btn btn-danger" onclick="deleteCafe('${c.id}')">🗑️</button>
