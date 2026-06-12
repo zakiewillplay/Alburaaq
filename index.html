@@ -45,6 +45,8 @@
             -webkit-background-clip:text;
             -webkit-text-fill-color:transparent;
         }
+        .header-actions { display:flex; gap:0.6rem; align-items:center; }
+
         .theme-toggle {
             background:var(--card-bg);
             border:1px solid var(--border);
@@ -54,6 +56,25 @@
             cursor:pointer;
             font-size:0.9rem;
         }
+
+        /* Small download button */
+        .download-btn {
+            background:transparent;
+            border:1.5px solid var(--primary);
+            color:var(--primary);
+            padding:0.5rem 1rem;
+            border-radius:50px;
+            font-weight:600;
+            font-size:0.82rem;
+            text-decoration:none;
+            transition:0.2s;
+            white-space:nowrap;
+        }
+        .download-btn:hover {
+            background:var(--primary);
+            color:#fff;
+        }
+
         .hero { text-align:center; padding:5rem 1rem 2rem; }
         .hero h1 {
             font-size:clamp(3rem,8vw,5rem);
@@ -71,21 +92,6 @@
             font-weight:700; text-decoration:none; transition:0.2s;
         }
         .btn:hover { transform:translateY(-3px); box-shadow:0 15px 35px rgba(232,146,26,0.5); }
-        .btn-outline {
-            background:transparent;
-            border:2px solid var(--primary);
-            color:var(--primary);
-            padding:0.9rem 2.4rem;
-            border-radius:50px;
-            font-weight:700;
-            text-decoration:none;
-            display:inline-block;
-            transition:0.2s;
-        }
-        .btn-outline:hover {
-            background:var(--primary);
-            color:#fff;
-        }
         .features { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:2rem; padding:2rem 0; }
         .feature-card {
             background:var(--card-bg); border:1px solid var(--border);
@@ -96,18 +102,6 @@
         .feature-card .icon { font-size:3rem; margin-bottom:1rem; }
         .feature-card h3 { color:var(--primary); margin-bottom:0.5rem; }
         footer { text-align:center; padding:2rem; color:var(--muted); }
-
-        /* App download section */
-        .app-download {
-            text-align:center;
-            padding:3rem 1rem;
-            background:linear-gradient(135deg, rgba(232,146,26,0.1), rgba(245,180,69,0.1));
-            border-radius:30px;
-            margin:2rem 0;
-        }
-        .app-download h2 { color:var(--primary); margin-bottom:0.5rem; }
-        .app-download p { color:var(--muted); margin-bottom:1.5rem; }
-        .download-buttons { display:flex; gap:1rem; flex-wrap:wrap; justify-content:center; }
 
         .phone-3d { perspective:1200px; width:260px; height:520px; margin:0 auto; position:relative; }
         .phone-body {
@@ -134,28 +128,16 @@
     <div class="container">
         <header>
             <div class="logo">Digity</div>
-            <button class="theme-toggle" id="themeToggle">🌙 Dark</button>
+            <div class="header-actions">
+                <a href="https://github.com/zakiewillplay/Digity/releases/download/v1/digity.apk" class="download-btn" target="_blank">📥 Download App</a>
+                <button class="theme-toggle" id="themeToggle">🌙 Dark</button>
+            </div>
         </header>
         <section class="hero">
             <h1>Digity</h1>
             <p>Free digital QR menus for your café.<br>Beautiful, instant, and your brand.</p>
             <a href="auth.html" class="btn">Get Started Free</a>
         </section>
-
-        <!-- App Download Section -->
-        <div class="app-download">
-            <h2>📲 Get the App</h2>
-            <p>Download the native Android app for a faster, full‑screen experience.</p>
-            <div class="download-buttons">
-                <a href="https://github.com/zakiewillplay/Digity/releases/download/v1/digity.apk" class="btn" target="_blank">⬇️ Download for Android</a>
-                <a href="#" class="btn-outline" onclick="alert('iOS version coming soon!')">🍎 iOS (Soon)</a>
-            </div>
-            <p style="font-size:0.75rem; color:var(--muted); margin-top:1rem; word-break:break-all;">
-                🔐 <strong>SHA‑256:</strong> 94ae5916a4b38623308d6b84f2b3f53dcbe6f8aa296447c3406df23265e54d6b<br>
-                <em>Verify the file after download to ensure it hasn’t been modified.</em>
-            </p>
-        </div>
-
         <div class="features">
             <div class="feature-card"><div class="icon">🚀</div><h3>Instant QR Menu</h3><p>Generate a QR code in seconds. Customers scan and browse instantly.</p></div>
             <div class="feature-card"><div class="icon">📱</div><h3>Easy Ordering</h3><p>Customers order from their phone. You get real-time alerts.</p></div>
@@ -199,4 +181,4 @@
         }
     </script>
 </body>
-</html> 
+</html>
