@@ -916,7 +916,6 @@
             if (data && data.length > 0) {
                 const ticker = document.getElementById('newsTicker');
                 ticker.style.display = 'flex';
-                // Show title and body in the ticker
                 document.getElementById('newsTickerText').innerHTML = data.map(p => `<strong>${p.title}</strong> – ${p.body}`).join(' &nbsp;|&nbsp; ');
             } else {
                 document.getElementById('newsTicker').style.display = 'none';
