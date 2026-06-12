@@ -13,7 +13,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
     <style>
-        /* … all existing menu styles … */
         :root {
             --amber: #e8921a; --amber-lt: #f5b445; --amber-glow: rgba(232,146,26,0.15);
             --espresso: #120b05; --card-bg: rgba(26,14,6,0.97); --card-border: rgba(232,146,26,0.16);
@@ -338,6 +337,47 @@
         .btn-order.loading { opacity: 0.7; pointer-events: none; }
         .btn-order .spinner { display: none; }
         .btn-order.loading .spinner { display: inline-block; margin-right: 0.5rem; }
+        /* Daily special badge */
+        .daily-special-badge {
+            position: absolute; top: 8px; right: 8px; background: #c0392b; color: #fff;
+            padding: 2px 10px; border-radius: 12px; font-size: 0.7rem; font-weight: 700;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+        /* Chatbot input */
+        .chatbot-input {
+            display: flex; gap: 0.5rem; margin: 1rem 0; align-items: center;
+        }
+        .chatbot-input input {
+            flex: 1; background: var(--glass); border: 1px solid var(--glass-border);
+            color: var(--text); padding: 0.65rem 0.9rem; border-radius: 10px;
+            font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.85rem;
+        }
+        .chatbot-input button {
+            padding: 0.65rem 1.2rem; background: var(--amber); color: #fff;
+            border: none; border-radius: 10px; font-weight: 600; cursor: pointer;
+        }
+        /* Reorder button */
+        .reorder-btn {
+            background: rgba(232,146,26,0.15); border: 1px solid var(--amber);
+            color: var(--amber); padding: 0.5rem 1rem; border-radius: 20px;
+            font-size: 0.8rem; cursor: pointer; margin-bottom: 1rem;
+        }
+        /* Tier badge */
+        .tier-badge {
+            display: inline-block; padding: 2px 8px; border-radius: 6px;
+            font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.9px;
+        }
+        .tier-bronze { background: #cd7f32; color: #fff; }
+        .tier-silver { background: #aaa; color: #fff; }
+        .tier-gold   { background: #ffd700; color: #000; }
+        /* Birthday prompt */
+        .birthday-prompt {
+            background: var(--card-bg); border: 1px solid var(--amber);
+            border-radius: 14px; padding: 1rem; margin-top: 1rem;
+            text-align: center;
+        }
+        .birthday-prompt input { margin-bottom: 0.5rem; }
         @media (max-width:640px) {
             .menu-content { padding:1.2rem 1.2rem 140px; }
             .menu-item { gap:0.9rem !important; padding:1rem !important; border-radius:14px !important; }
@@ -408,6 +448,8 @@
             </div>
             <!-- Normal menu -->
             <div id="normalMenu">
+                <!-- Reorder section -->
+                <div id="reorderSection" style="display:none; margin-bottom:1rem;"></div>
                 <header class="menu-header">
                     <div id="cafeLogoContainer" style="margin-bottom: 1rem; display: none;">
                         <img id="cafeLogoImg" src="" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid var(--amber); box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
@@ -417,6 +459,11 @@
                     <p id="cafeDesc"></p>
                     <div class="header-rule"><span></span><em>✦</em><span></span></div>
                 </header>
+                <!-- Chatbot / text order -->
+                <div class="chatbot-input">
+                    <input type="text" id="chatInput" placeholder="Type your order... (e.g., 2 lattes)">
+                    <button id="chatOrderBtn">Order by text</button>
+                </div>
                 <div class="search-container"><div class="search-wrap"><span class="search-icon">🔍</span><input type="text" class="search-bar" id="searchBar" placeholder="Search dishes, drinks…"></div></div>
                 <div class="category-tabs" id="categoryTabs"></div>
                 <div id="menuSections"></div>
@@ -476,6 +523,9 @@
         </div>
     </div>
 
+    <!-- Birthday prompt (inserted dynamically) -->
+    <div id="birthdayPromptContainer"></div>
+
     <script>
         const SUPABASE_URL = 'https://dsbqhorzcbcrjivrgauk.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRzYnFob3J6Y2JjcmppdnJnYXVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMTQxMjAsImV4cCI6MjA5NjU5MDEyMH0.mSv--VVeaKzYSUGenYT5uYuIv85A4C0A0eyqT-DWv2o';
@@ -496,6 +546,7 @@
         let menuItems = [], cart = [], activeCategory = 'All', cafeData;
         let dietaryFilter = 'all';
         let upsellItemId = null;
+        let dailySpecialItem = null;
         try { cart = JSON.parse(localStorage.getItem('cafe_cart') || '[]'); } catch(e) { cart = []; }
 
         function showToast(msg) {
@@ -578,6 +629,23 @@
                 }
             }
 
+            // Daily special
+            if (cafe?.daily_special_enabled) {
+                let specialId = cafe.daily_special_item_id;
+                if (!specialId) {
+                    // pick random available item
+                    const available = menuItems.length ? menuItems[Math.floor(Math.random() * menuItems.length)] : null;
+                    if (available) specialId = available.id;
+                }
+                if (specialId) {
+                    const { data: special } = await _sb.from('menu_items').select('*').eq('id', specialId).single();
+                    if (special) {
+                        dailySpecialItem = special;
+                        if (!special.discount_price) special.discount_price = Math.round(special.price * 0.8);
+                    }
+                }
+            }
+
             // Spotlight
             loadSpotlight();
             // Top news
@@ -586,9 +654,18 @@
             const { data: items } = await _sb.from('menu_items').select('*').eq('cafe_id', cafeId).eq('available', true).order('category');
             menuItems = items?.length ? items : [];
             if (tableParam) { const t = document.getElementById('tableNumber'); t.value = tableParam; t.readOnly = true; t.style.opacity = '0.6'; }
+
+            // Reorder section
+            loadReorderSection();
             renderMenu(true);
             updateCartUI();
             loadReviews();
+
+            // Birthday prompt
+            if (cafe?.birthday_rewards_enabled) {
+                showBirthdayPrompt();
+            }
+
             setTimeout(subscribeToPush, 3000);
         }
 
@@ -609,12 +686,10 @@
         async function loadSpotlight() {
             const container = document.getElementById('spotlightContainer');
             let ids = [];
-            // Try to get featured cafes from admin panel
             const { data: featured } = await _sb.from('featured_cafes').select('cafe1_id, cafe2_id').single();
             if (featured && (featured.cafe1_id || featured.cafe2_id)) {
                 ids = [featured.cafe1_id, featured.cafe2_id].filter(Boolean);
             } else {
-                // Auto-select: get other active/trial cafes not the current one
                 const { data: otherCafes } = await _sb.from('cafes')
                     .select('id')
                     .neq('id', cafeId)
@@ -652,6 +727,29 @@
             }
         }
 
+        function loadReorderSection() {
+            const lastOrder = JSON.parse(localStorage.getItem('digity_last_order') || '[]');
+            if (!lastOrder.length) return;
+            const container = document.getElementById('reorderSection');
+            container.innerHTML = `<button class="reorder-btn" onclick="reorder()">🔄 Reorder your last items (${lastOrder.map(i=>i.name).join(', ')})</button>`;
+            container.style.display = 'block';
+        }
+
+        window.reorder = () => {
+            const lastOrder = JSON.parse(localStorage.getItem('digity_last_order') || '[]');
+            lastOrder.forEach(item => {
+                const menuItem = menuItems.find(i => i.id == item.id);
+                if (menuItem) {
+                    const existing = cart.find(c => c.cartKey === item.id);
+                    if (existing) existing.qty += item.qty;
+                    else cart.push({ cartKey: item.id, id: item.id, name: menuItem.name, price: menuItem.price, qty: item.qty });
+                }
+            });
+            updateCartUI();
+            renderMenu();
+            toast('Last order added to cart!');
+        };
+
         function renderMenu(initial = false) {
             let filtered = menuItems.filter(i => {
                 if (dietaryFilter === 'all') return true;
@@ -665,8 +763,10 @@
             filtered = filtered.filter(i => (i.name||'').toLowerCase().includes(search) || (i.description||'').toLowerCase().includes(search));
             filtered = filtered.filter(i => activeCategory === 'All' || i.category === activeCategory);
 
-            // Sort: popular tags first
+            // Sort: popular tags first, then daily special on top
             filtered.sort((a, b) => {
+                if (dailySpecialItem && a.id === dailySpecialItem.id) return -1;
+                if (dailySpecialItem && b.id === dailySpecialItem.id) return 1;
                 const aPop = (a.tags || '').includes('bestselling') || (a.tags || '').includes('featured') ? 1 : 0;
                 const bPop = (b.tags || '').includes('bestselling') || (b.tags || '').includes('featured') ? 1 : 0;
                 return bPop - aPop;
@@ -686,11 +786,14 @@
                     if (!catItems.length) return;
                     html += `<div class="category-section"><h3 class="section-heading">${cat}</h3>`;
                     catItems.forEach(item => {
+                        const isDailySpecial = dailySpecialItem && item.id === dailySpecialItem.id;
+                        const priceDisplay = isDailySpecial ? dailySpecialItem.discount_price : item.price;
                         const tags = (item.tags||'').split(',').map(t=>t.trim());
                         let badges = '';
                         if (tags.includes('featured')) badges += '<span class="badge badge-featured">✦ Special</span> ';
                         if (tags.includes('new')) badges += '<span class="badge badge-new">New</span> ';
                         if (tags.includes('discount')) badges += '<span class="badge badge-discount">Sale</span> ';
+                        if (isDailySpecial) badges += '<span class="badge badge-discount">Today\'s Special</span> ';
                         if (item.allergens) {
                             item.allergens.forEach(a => {
                                 if (a === 'gluten') badges += '<span class="badge badge-red" style="background:rgba(231,76,60,0.15);color:#e74c3c;border:1px solid rgba(231,76,60,0.3);">🌾 Gluten</span> ';
@@ -706,12 +809,12 @@
                         }
 
                         const hasVariants = item.description?.startsWith('VAR::');
-                        let variants = [], priceDisplay = item.price;
+                        let variants = [], basePrice = item.price;
                         let itemDescText = item.description || '';
                         if (hasVariants) {
                             const vStr = item.description.replace('VAR::','');
                             variants = vStr.split('|').map(v => { const [n,p] = v.split('='); return { name:n, price:parseFloat(p) }; });
-                            if (variants.length) priceDisplay = variants[0].price;
+                            if (variants.length) basePrice = variants[0].price;
                             itemDescText = '';
                         }
 
@@ -725,14 +828,15 @@
                         const qty = cartItem?.qty || 0;
 
                         html += `
-                        <div class="menu-item" data-id="${item.id}" data-name="${item.name}" data-base-price="${priceDisplay}">
+                        <div class="menu-item" data-id="${item.id}" data-name="${item.name}" data-base-price="${isDailySpecial ? priceDisplay : basePrice}">
+                            ${isDailySpecial ? '<div class="daily-special-badge">🔥 Deal</div>' : ''}
                             ${imgHtml}
                             <div class="item-details">
                                 <div class="item-name">${item.name}</div>
                                 ${badges ? `<div style="margin:5px 0 2px;">${badges}</div>` : ''}
                                 ${itemDescText && !hasVariants ? `<div class="item-desc">${itemDescText}</div>` : ''}
                                 ${variantHTML}
-                                <div class="item-price">₹<span class="active-price">${priceDisplay}</span></div>
+                                <div class="item-price">₹<span class="active-price">${isDailySpecial ? priceDisplay : basePrice}</span>${isDailySpecial ? ` <span style="text-decoration:line-through; color:var(--muted); font-size:0.8rem;">₹${item.price}</span>` : ''}</div>
                             </div>
                             <div class="qty-controls">
                                 <button class="qty-btn qty-plus${qty>0?' has-qty':''}">+</button>
@@ -853,19 +957,14 @@
             btn.innerHTML = '<span class="spinner">⏳</span> Preparing...';
             await new Promise(r => setTimeout(r, 1500));
 
-            // Check if upsell enabled
             if (cafeData.upsell_enabled) {
-                // Get upsell item – auto if not set
                 let upsellItem = null;
                 if (cafeData.upsell_item_id) {
                     const { data } = await _sb.from('menu_items').select('*').eq('id', cafeData.upsell_item_id).single();
                     upsellItem = data;
                 } else {
-                    // Auto‑pick a random available item not already in cart
                     const available = menuItems.filter(i => !cart.find(c => c.id == i.id));
-                    if (available.length > 0) {
-                        upsellItem = available[Math.floor(Math.random() * available.length)];
-                    }
+                    if (available.length > 0) upsellItem = available[Math.floor(Math.random() * available.length)];
                 }
                 if (upsellItem) {
                     upsellItemId = upsellItem.id;
@@ -876,7 +975,6 @@
                     return;
                 }
             }
-            // No upsell → proceed with order
             await processOrder();
             btn.classList.remove('loading');
             btn.innerHTML = 'Place Order →';
@@ -899,14 +997,20 @@
             }).select().maybeSingle();
             if (error) { showToast('Order failed: ' + error.message); return; }
 
-            // Loyalty update
+            // Save last order
+            localStorage.setItem('digity_last_order', JSON.stringify(cart.map(c => ({ id: c.id, name: c.name, qty: c.qty }))));
+
+            // Loyalty update with tier
             if (cafeData.loyalty_enabled) {
                 const deviceId = localStorage.getItem('digity_device_id');
                 if (deviceId) {
                     const { data: loyalty } = await _sb.from('loyalty').select('*').eq('cafe_id', cafeId).eq('customer_identifier', deviceId).maybeSingle();
                     if (loyalty) {
                         const newCount = loyalty.orders_count + 1;
-                        await _sb.from('loyalty').update({ orders_count: newCount }).eq('id', loyalty.id);
+                        let tier = 'bronze';
+                        if (newCount >= 15) tier = 'silver';
+                        if (newCount >= 30) tier = 'gold';
+                        await _sb.from('loyalty').update({ orders_count: newCount, tier }).eq('id', loyalty.id);
                         document.getElementById('loyaltyCount').textContent = newCount;
                         document.getElementById('loyaltyBadge').style.display = 'flex';
                         if (newCount >= 10 && !loyalty.reward_claimed) {
@@ -914,7 +1018,7 @@
                             await _sb.from('loyalty').update({ reward_claimed: true }).eq('id', loyalty.id);
                         }
                     } else {
-                        await _sb.from('loyalty').insert({ cafe_id: cafeId, customer_identifier: deviceId, orders_count: 1 });
+                        await _sb.from('loyalty').insert({ cafe_id: cafeId, customer_identifier: deviceId, orders_count: 1, tier: 'bronze' });
                         document.getElementById('loyaltyBadge').style.display = 'flex';
                         document.getElementById('loyaltyCount').textContent = '1';
                     }
@@ -938,36 +1042,23 @@
             setTimeout(() => { overlay.classList.remove('show'); overlay.querySelectorAll('.confetti-dot').forEach(d => d.remove()); }, 3600);
 
             if (cafeData.google_review_url) {
-                setTimeout(() => {
-                    if (confirm('Enjoyed your experience? Leave us a Google review!')) {
-                        window.open(cafeData.google_review_url, '_blank');
-                    }
-                }, 1500);
+                setTimeout(() => { if (confirm('Enjoyed your experience? Leave us a Google review!')) window.open(cafeData.google_review_url, '_blank'); }, 1500);
             }
 
             if (cafeData.telegram_chat_id) {
                 fetch(TELEGRAM_NOTIFY_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
-                    body: JSON.stringify({
-                        chat_id: cafeData.telegram_chat_id,
-                        cafe_name: cafeData.cafe_name,
-                        table: table,
-                        customer: document.getElementById('customerName').value.trim() || 'Guest',
-                        items: orderItems,
-                        total: total
-                    })
+                    body: JSON.stringify({ chat_id: cafeData.telegram_chat_id, cafe_name: cafeData.cafe_name, table, customer: document.getElementById('customerName').value.trim() || 'Guest', items: orderItems, total })
                 }).catch(e => console.error(e));
             }
 
             if (order) {
-                setTimeout(() => {
-                    window.location.href = `track.html?id=${order.id}`;
-                }, 2000);
+                setTimeout(() => { window.location.href = `track.html?id=${order.id}`; }, 2000);
             }
         }
 
-        // Upsell modal events
+        // Upsell modal buttons
         document.getElementById('upsellYes').addEventListener('click', async () => {
             document.getElementById('upsellModal').style.display = 'none';
             if (upsellItemId) {
@@ -983,22 +1074,43 @@
             }
             upsellItemId = null;
         });
-
         document.getElementById('upsellNo').addEventListener('click', async () => {
             document.getElementById('upsellModal').style.display = 'none';
             upsellItemId = null;
             await processOrder();
         });
 
+        // ---- Text chatbot ----
+        document.getElementById('chatOrderBtn').addEventListener('click', async () => {
+            const text = document.getElementById('chatInput').value.trim();
+            if (!text) return toast('Type your order');
+            const res = await fetch(GEMINI_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+                body: JSON.stringify({ promptExtra: `Extract ordered items from this text: "${text}". Return JSON array of {name, qty}.` })
+            });
+            const data = await res.json();
+            if (data.result) {
+                const items = JSON.parse(data.result);
+                items.forEach(item => {
+                    const menuItem = menuItems.find(i => i.name.toLowerCase().includes(item.name.toLowerCase()));
+                    if (menuItem) {
+                        const existing = cart.find(c => c.cartKey === menuItem.id);
+                        if (existing) existing.qty += item.qty || 1;
+                        else cart.push({ cartKey: menuItem.id, id: menuItem.id, name: menuItem.name, price: menuItem.price, qty: item.qty || 1 });
+                    }
+                });
+                updateCartUI();
+                renderMenu();
+                document.getElementById('chatInput').value = '';
+            } else toast('Could not understand. Please try again.');
+        });
+
         // Voice order (unchanged)
         let recognition = null;
         const voiceBtn = document.getElementById('voiceOrderBtn');
         voiceBtn.addEventListener('click', () => {
-            if (recognition) {
-                recognition.stop(); recognition = null;
-                voiceBtn.classList.remove('listening'); voiceBtn.textContent = '🎤';
-                return;
-            }
+            if (recognition) { recognition.stop(); recognition = null; voiceBtn.classList.remove('listening'); voiceBtn.textContent = '🎤'; return; }
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SpeechRecognition) { showToast('Voice input not supported on this device'); return; }
             recognition = new SpeechRecognition();
@@ -1032,6 +1144,31 @@
             recognition.onend = () => { voiceBtn.classList.remove('listening'); voiceBtn.textContent = '🎤'; recognition = null; };
             recognition.start();
         });
+
+        // Birthday prompt
+        function showBirthdayPrompt() {
+            const deviceId = localStorage.getItem('digity_device_id');
+            if (!deviceId) return;
+            _sb.from('customers').select('birthday').eq('cafe_id', cafeId).eq('phone', deviceId).maybeSingle().then(({ data }) => {
+                if (!data || !data.birthday) {
+                    const container = document.getElementById('birthdayPromptContainer');
+                    container.innerHTML = `
+                        <div class="birthday-prompt">
+                            <p>Enter your birthday (optional) and get a reward on your special day!</p>
+                            <input type="date" id="birthdayInput" style="margin-bottom:0.5rem;">
+                            <button onclick="saveBirthday()" class="btn btn-primary">Save</button>
+                        </div>`;
+                }
+            });
+        }
+        window.saveBirthday = async () => {
+            const date = document.getElementById('birthdayInput').value;
+            if (!date) return;
+            const deviceId = localStorage.getItem('digity_device_id');
+            await _sb.from('customers').upsert({ cafe_id: cafeId, phone: deviceId, birthday: date });
+            toast('Birthday saved!');
+            document.getElementById('birthdayPromptContainer').innerHTML = '';
+        };
 
         async function subscribeToPush() {
             if (!('serviceWorkerRegistration' in navigator)) return;
