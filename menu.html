@@ -13,6 +13,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
     <style>
+        /* … all existing menu styles … */
         :root {
             --amber: #e8921a; --amber-lt: #f5b445; --amber-glow: rgba(232,146,26,0.15);
             --espresso: #120b05; --card-bg: rgba(26,14,6,0.97); --card-border: rgba(232,146,26,0.16);
@@ -238,38 +239,32 @@
         @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:none} }
         .empty-state { text-align:center; padding:4rem 2rem; color:var(--muted); }
         .empty-icon { font-size:2.8rem; margin-bottom:0.8rem; opacity:0.35; }
-        /* Fixed news ticker */
-        .news-ticker {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: var(--card-bg);
-            border-top: 1px solid var(--amber);
-            padding: 0.9rem 1.2rem;
-            z-index: 45;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 0.85rem;
-            font-weight: 500;
-            min-height: 50px;
+        /* Fixed news ticker – now hidden (moved to top) */
+        #newsTicker { display: none !important; }
+        /* Top news ticker */
+        .news-ticker-top {
+            background: var(--card-bg); border-bottom: 1px solid var(--amber);
+            padding: 0.6rem 1rem; overflow: hidden; white-space: nowrap;
+            margin-bottom: 1rem; border-radius: 12px;
+            position: sticky; top: 0; z-index: 41;
         }
-        .news-ticker i { color: var(--amber); font-size: 1.1rem; }
-        .news-ticker span {
-            flex: 1;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+        .news-ticker-top .ticker-content {
+            display: inline-block; animation: scrollNews 30s linear infinite;
         }
-        .floating-cart { bottom: 80px; }
-        .waiter-btn { bottom: 80px; }
-        .menu-content { padding-bottom: 120px !important; }
+        .news-ticker-top:hover .ticker-content { animation-play-state: paused; }
+        @keyframes scrollNews {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+        .news-ticker-top .ticker-content span {
+            margin: 0 2rem; font-size: 0.85rem;
+        }
         /* Spotlight card */
         .spotlight-card {
             background: var(--card-bg); border: 1px solid var(--amber);
             border-radius: 14px; padding: 1rem; margin-bottom: 1.5rem;
             display: flex; gap: 1rem; align-items: center;
+            opacity: 0; transform: translateY(20px);
         }
         .spotlight-card a { color: var(--amber); text-decoration: none; font-weight: bold; }
         .maintenance-msg { text-align: center; padding: 4rem 2rem; }
@@ -313,6 +308,36 @@
             align-items:center; justify-content:center; text-decoration:none;
             box-shadow:0 4px 12px rgba(37,211,102,0.4);
         }
+        /* Cart remove button */
+        .cart-remove-btn {
+            background: none; border: none; color: var(--muted);
+            cursor: pointer; font-size: 1rem; padding: 0 0.5rem;
+        }
+        .cart-remove-btn:hover { color: #c0392b; }
+        /* Upsell modal */
+        .upsell-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 70;
+            display: flex; align-items: center; justify-content: center; padding: 1rem;
+        }
+        .upsell-card {
+            background: var(--card-bg); border: 2px solid var(--amber);
+            border-radius: var(--radius); padding: 2rem; max-width: 350px;
+            text-align: center; animation: popIn 0.3s ease;
+        }
+        @keyframes popIn {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        .upsell-card h3 { color: var(--amber); margin-bottom: 0.5rem; }
+        .upsell-card p { margin-bottom: 1rem; }
+        .upsell-buttons { display: flex; gap: 1rem; justify-content: center; }
+        .upsell-buttons button { padding: 0.6rem 1.5rem; border-radius: 30px; font-weight: 600; cursor: pointer; }
+        .upsell-btn-yes { background: var(--amber); color: #fff; border: none; }
+        .upsell-btn-no { background: transparent; border: 1px solid var(--amber); color: var(--amber); }
+        /* Loading state */
+        .btn-order.loading { opacity: 0.7; pointer-events: none; }
+        .btn-order .spinner { display: none; }
+        .btn-order.loading .spinner { display: inline-block; margin-right: 0.5rem; }
         @media (max-width:640px) {
             .menu-content { padding:1.2rem 1.2rem 140px; }
             .menu-item { gap:0.9rem !important; padding:1rem !important; border-radius:14px !important; }
@@ -358,6 +383,11 @@
         <!-- Estimated wait time -->
         <div id="waitBanner" class="wait-banner" style="display:none;">
             ⏱️ Estimated wait time: <span id="waitTime">--</span> minutes
+        </div>
+
+        <!-- NEWS TICKER – at top -->
+        <div id="newsTickerTop" class="news-ticker-top" style="display:none;">
+            <div class="ticker-content" id="tickerContent"></div>
         </div>
 
         <!-- Dietary filters -->
@@ -423,11 +453,8 @@
         <p class="success-sub" id="successMsg">We're preparing your order…</p>
     </div>
 
-    <!-- Fixed news ticker -->
-    <div id="newsTicker" class="news-ticker" style="display:none;">
-        <i>📰</i>
-        <span id="newsTickerText"></span>
-    </div>
+    <!-- Fixed news ticker (old bottom one – hidden) -->
+    <div id="newsTicker" class="news-ticker" style="display:none;"></div>
 
     <!-- Loyalty badge -->
     <div id="loyaltyBadge" class="loyalty-badge" style="display:none;" title="Loyalty Rewards">
@@ -436,6 +463,18 @@
 
     <!-- WhatsApp button -->
     <a id="whatsappBtn" class="whatsapp-btn" style="display:none;" href="#" target="_blank">💬</a>
+
+    <!-- UPSEL MODAL -->
+    <div id="upsellModal" class="upsell-overlay" style="display:none;">
+        <div class="upsell-card">
+            <h3>🔥 Special Offer</h3>
+            <p id="upsellText">Would you like to add a ...?</p>
+            <div class="upsell-buttons">
+                <button class="upsell-btn-yes" id="upsellYes">Yes, add it!</button>
+                <button class="upsell-btn-no" id="upsellNo">No, just order</button>
+            </div>
+        </div>
+    </div>
 
     <script>
         const SUPABASE_URL = 'https://dsbqhorzcbcrjivrgauk.supabase.co';
@@ -456,6 +495,7 @@
 
         let menuItems = [], cart = [], activeCategory = 'All', cafeData;
         let dietaryFilter = 'all';
+        let upsellItemId = null;
         try { cart = JSON.parse(localStorage.getItem('cafe_cart') || '[]'); } catch(e) { cart = []; }
 
         function showToast(msg) {
@@ -540,33 +580,62 @@
 
             // Spotlight
             loadSpotlight();
+            // Top news
+            loadTopNews();
 
             const { data: items } = await _sb.from('menu_items').select('*').eq('cafe_id', cafeId).eq('available', true).order('category');
             menuItems = items?.length ? items : [];
             if (tableParam) { const t = document.getElementById('tableNumber'); t.value = tableParam; t.readOnly = true; t.style.opacity = '0.6'; }
             renderMenu(true);
             updateCartUI();
-            loadNews();
             loadReviews();
             setTimeout(subscribeToPush, 3000);
         }
 
+        async function loadTopNews() {
+            if (!cafeId) return;
+            const { data, error } = await _sb.from('news_posts')
+                .select('title, body')
+                .eq('cafe_id', cafeId)
+                .order('created_at', { ascending: false })
+                .limit(5);
+            if (data && data.length > 0) {
+                document.getElementById('newsTickerTop').style.display = 'block';
+                const content = data.map(p => `<span><strong>${p.title}</strong> – ${p.body}</span>`).join('');
+                document.getElementById('tickerContent').innerHTML = content + content;
+            }
+        }
+
         async function loadSpotlight() {
+            const container = document.getElementById('spotlightContainer');
+            let ids = [];
+            // Try to get featured cafes from admin panel
             const { data: featured } = await _sb.from('featured_cafes').select('cafe1_id, cafe2_id').single();
-            if (!featured || (!featured.cafe1_id && !featured.cafe2_id)) return;
-            const ids = [featured.cafe1_id, featured.cafe2_id].filter(Boolean);
-            const { data: cafes } = await _sb.from('cafes').select('id, cafe_name').in('id', ids);
+            if (featured && (featured.cafe1_id || featured.cafe2_id)) {
+                ids = [featured.cafe1_id, featured.cafe2_id].filter(Boolean);
+            } else {
+                // Auto-select: get other active/trial cafes not the current one
+                const { data: otherCafes } = await _sb.from('cafes')
+                    .select('id')
+                    .neq('id', cafeId)
+                    .in('subscription_status', ['active', 'trial'])
+                    .limit(2);
+                ids = (otherCafes || []).map(c => c.id);
+            }
+            if (ids.length === 0) return;
+            const { data: cafes } = await _sb.from('cafes').select('id, cafe_name, description').in('id', ids);
             if (!cafes || cafes.length === 0) return;
-            const spotlightHtml = cafes.map(c => `
+            const html = cafes.map(c => `
                 <div class="spotlight-card">
                     <span>✨</span>
                     <div>
                         <a href="${BASE_URL}${c.id}" target="_blank">${c.cafe_name}</a>
-                        <div style="font-size:0.8rem; color:var(--muted);">Discover more</div>
+                        <div style="font-size:0.8rem; color:var(--muted);">${c.description ? c.description.substring(0, 60) + '…' : 'Try something new today! 🎉'}</div>
                     </div>
                 </div>
             `).join('');
-            document.getElementById('spotlightContainer').innerHTML = spotlightHtml;
+            container.innerHTML = html;
+            gsap.fromTo('.spotlight-card', { opacity:0, y:20 }, { opacity:1, y:0, stagger:0.15, duration:0.5 });
         }
 
         async function loadReviews() {
@@ -595,6 +664,13 @@
             const search = document.getElementById('searchBar').value.toLowerCase();
             filtered = filtered.filter(i => (i.name||'').toLowerCase().includes(search) || (i.description||'').toLowerCase().includes(search));
             filtered = filtered.filter(i => activeCategory === 'All' || i.category === activeCategory);
+
+            // Sort: popular tags first
+            filtered.sort((a, b) => {
+                const aPop = (a.tags || '').includes('bestselling') || (a.tags || '').includes('featured') ? 1 : 0;
+                const bPop = (b.tags || '').includes('bestselling') || (b.tags || '').includes('featured') ? 1 : 0;
+                return bPop - aPop;
+            });
 
             const cats = ['All', ...new Set(menuItems.map(i => i.category).filter(Boolean))].sort();
             document.getElementById('categoryTabs').innerHTML = cats.map(c => `<button class="cat-btn${c===activeCategory?' active':''}" data-cat="${c}">${c}</button>`).join('');
@@ -715,7 +791,9 @@
                 const existing = cart.find(c => c.cartKey === cartKey);
                 if (existing) {
                     existing.qty--;
-                    if (existing.qty <= 0) cart = cart.filter(c => c.cartKey !== cartKey);
+                    if (existing.qty <= 0) {
+                        cart = cart.filter(c => c.cartKey !== cartKey);
+                    }
                 }
                 updateCartUI();
                 const numEl = itemEl.querySelector('.qty-num');
@@ -733,8 +811,20 @@
             else { badge.style.display = 'none'; }
             document.getElementById('cartTotal').textContent = totalPrice.toFixed(2);
             document.getElementById('cartCountLabel').textContent = totalQty ? `${totalQty} item${totalQty>1?'s':''}` : '';
-            document.getElementById('cartItemsList').innerHTML = cart.length ? cart.map(c => `<div class="cart-item-row"><span class="cart-item-name">${c.name}${c.variant?' ('+c.variant+')':''}&nbsp;&nbsp;×${c.qty}</span><span class="cart-item-price">₹${(c.price*c.qty).toFixed(2)}</span></div>`).join('') : '<p style="color:var(--muted);font-size:0.9rem;padding:1rem 0;">No items yet.</p>';
+            document.getElementById('cartItemsList').innerHTML = cart.length ? cart.map(c => `
+                <div class="cart-item-row">
+                    <span class="cart-item-name">${c.name}${c.variant?' ('+c.variant+')':''}&nbsp;&nbsp;×${c.qty}</span>
+                    <span class="cart-item-price">₹${(c.price*c.qty).toFixed(2)}</span>
+                    <button class="cart-remove-btn" onclick="removeCartItem('${c.cartKey}')">🗑️</button>
+                </div>
+            `).join('') : '<p style="color:var(--muted);font-size:0.9rem;padding:1rem 0;">No items yet.</p>';
         }
+
+        window.removeCartItem = (cartKey) => {
+            cart = cart.filter(c => c.cartKey !== cartKey);
+            updateCartUI();
+            renderMenu();
+        };
 
         document.getElementById('floatingCart').addEventListener('click', () => { if (!cart.length) return showToast(tl('cartEmpty')); document.getElementById('cartPanel').classList.add('open'); });
         document.getElementById('closeCartBtn').addEventListener('click', () => document.getElementById('cartPanel').classList.remove('open'));
@@ -755,8 +845,44 @@
             else { showToast(tl('waiterCall')); this.classList.remove('ring'); void this.offsetWidth; this.classList.add('ring'); }
         });
 
+        // ---- PLACE ORDER with upsell flow ----
         document.getElementById('placeOrderBtn').addEventListener('click', async () => {
             if (!cart.length) return showToast(tl('cartEmpty'));
+            const btn = document.getElementById('placeOrderBtn');
+            btn.classList.add('loading');
+            btn.innerHTML = '<span class="spinner">⏳</span> Preparing...';
+            await new Promise(r => setTimeout(r, 1500));
+
+            // Check if upsell enabled
+            if (cafeData.upsell_enabled) {
+                // Get upsell item – auto if not set
+                let upsellItem = null;
+                if (cafeData.upsell_item_id) {
+                    const { data } = await _sb.from('menu_items').select('*').eq('id', cafeData.upsell_item_id).single();
+                    upsellItem = data;
+                } else {
+                    // Auto‑pick a random available item not already in cart
+                    const available = menuItems.filter(i => !cart.find(c => c.id == i.id));
+                    if (available.length > 0) {
+                        upsellItem = available[Math.floor(Math.random() * available.length)];
+                    }
+                }
+                if (upsellItem) {
+                    upsellItemId = upsellItem.id;
+                    document.getElementById('upsellText').textContent = `Would you like to add a ${upsellItem.name} for ₹${upsellItem.price}?`;
+                    document.getElementById('upsellModal').style.display = 'flex';
+                    btn.classList.remove('loading');
+                    btn.innerHTML = 'Place Order →';
+                    return;
+                }
+            }
+            // No upsell → proceed with order
+            await processOrder();
+            btn.classList.remove('loading');
+            btn.innerHTML = 'Place Order →';
+        });
+
+        async function processOrder() {
             const table = document.getElementById('tableNumber').value.trim() || tableParam || '';
             if (!table) return showToast(tl('tableReq'));
             const specialInstructions = document.getElementById('specialInstructions').value.trim();
@@ -772,20 +898,6 @@
                 special_instructions: specialInstructions
             }).select().maybeSingle();
             if (error) { showToast('Order failed: ' + error.message); return; }
-
-            // Upsell prompt (if enabled)
-            if (cafeData.upsell_enabled) {
-                const upsellItem = menuItems.find(i => !cart.find(c => c.id == i.id));
-                if (upsellItem) {
-                    setTimeout(() => {
-                        if (confirm(`Would you like to add a ${upsellItem.name} for ₹${upsellItem.price}?`)) {
-                            cart.push({ cartKey: upsellItem.id, id: upsellItem.id, name: upsellItem.name, price: upsellItem.price, qty: 1 });
-                            updateCartUI();
-                            renderMenu(false);
-                        }
-                    }, 1000);
-                }
-            }
 
             // Loyalty update
             if (cafeData.loyalty_enabled) {
@@ -834,7 +946,6 @@
             }
 
             if (cafeData.telegram_chat_id) {
-                showToast('Sending Telegram notification...');
                 fetch(TELEGRAM_NOTIFY_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
@@ -846,22 +957,40 @@
                         items: orderItems,
                         total: total
                     })
-                }).then(r => r.json()).then(d => {
-                    if (d.ok) showToast('Telegram sent!');
-                }).catch(e => showToast('Telegram error: ' + e.message));
-            } else {
-                showToast('No Telegram chat ID saved. Notification skipped.', true);
+                }).catch(e => console.error(e));
             }
 
-            // Redirect to order tracking
             if (order) {
                 setTimeout(() => {
                     window.location.href = `track.html?id=${order.id}`;
                 }, 2000);
             }
+        }
+
+        // Upsell modal events
+        document.getElementById('upsellYes').addEventListener('click', async () => {
+            document.getElementById('upsellModal').style.display = 'none';
+            if (upsellItemId) {
+                const existing = cart.find(c => c.cartKey === upsellItemId);
+                if (existing) existing.qty++;
+                else {
+                    const { data: item } = await _sb.from('menu_items').select('name, price').eq('id', upsellItemId).single();
+                    cart.push({ cartKey: upsellItemId, id: upsellItemId, name: item.name, price: item.price, qty: 1 });
+                }
+                updateCartUI();
+                renderMenu();
+                document.getElementById('cartPanel').classList.add('open');
+            }
+            upsellItemId = null;
         });
 
-        // Voice order
+        document.getElementById('upsellNo').addEventListener('click', async () => {
+            document.getElementById('upsellModal').style.display = 'none';
+            upsellItemId = null;
+            await processOrder();
+        });
+
+        // Voice order (unchanged)
         let recognition = null;
         const voiceBtn = document.getElementById('voiceOrderBtn');
         voiceBtn.addEventListener('click', () => {
@@ -903,24 +1032,6 @@
             recognition.onend = () => { voiceBtn.classList.remove('listening'); voiceBtn.textContent = '🎤'; recognition = null; };
             recognition.start();
         });
-
-        // News loader
-        async function loadNews() {
-            if (!cafeId) return;
-            const { data, error } = await _sb.from('news_posts')
-                .select('title, body')
-                .eq('cafe_id', cafeId)
-                .order('created_at', { ascending: false })
-                .limit(3);
-            if (error) { console.error('News fetch error:', error); return; }
-            if (data && data.length > 0) {
-                const ticker = document.getElementById('newsTicker');
-                ticker.style.display = 'flex';
-                document.getElementById('newsTickerText').innerHTML = data.map(p => `<strong>${p.title}</strong> – ${p.body}`).join(' &nbsp;|&nbsp; ');
-            } else {
-                document.getElementById('newsTicker').style.display = 'none';
-            }
-        }
 
         async function subscribeToPush() {
             if (!('serviceWorkerRegistration' in navigator)) return;
