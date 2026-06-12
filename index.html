@@ -46,7 +46,6 @@
             -webkit-text-fill-color:transparent;
         }
         .header-actions { display:flex; gap:0.6rem; align-items:center; }
-
         .theme-toggle {
             background:var(--card-bg);
             border:1px solid var(--border);
@@ -56,8 +55,6 @@
             cursor:pointer;
             font-size:0.9rem;
         }
-
-        /* Small download button */
         .download-btn {
             background:transparent;
             border:1.5px solid var(--primary);
@@ -74,7 +71,6 @@
             background:var(--primary);
             color:#fff;
         }
-
         .hero { text-align:center; padding:5rem 1rem 2rem; }
         .hero h1 {
             font-size:clamp(3rem,8vw,5rem);
@@ -102,7 +98,6 @@
         .feature-card .icon { font-size:3rem; margin-bottom:1rem; }
         .feature-card h3 { color:var(--primary); margin-bottom:0.5rem; }
         footer { text-align:center; padding:2rem; color:var(--muted); }
-
         .phone-3d { perspective:1200px; width:260px; height:520px; margin:0 auto; position:relative; }
         .phone-body {
             width:260px; height:520px; background:#1c1c1e; border-radius:2.5rem; padding:0.5rem;
@@ -155,7 +150,6 @@
         </div>
         <footer>© 2026 Digity – Built for cafés. Start your free trial.</footer>
     </div>
-
     <script>
         const themeToggle = document.getElementById('themeToggle');
         function applyTheme() {
@@ -174,8 +168,6 @@
             localStorage.setItem('digity_theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
             applyTheme();
         });
-
-        // Service Worker for PWA fallback
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/Digity/sw.js').catch(() => {});
         }
