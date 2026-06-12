@@ -176,6 +176,15 @@
             <div style="display:flex; gap:1rem; align-items:center; margin-bottom:1rem;">
                 <label>Enable Upsell Prompts</label><label class="switch"><input type="checkbox" id="setUpsell"><span class="slider"></span></label>
             </div>
+            <div style="display:flex; gap:1rem; align-items:center; margin-bottom:1rem;">
+                <label>Enable Daily Special</label><label class="switch"><input type="checkbox" id="setDailySpecial"><span class="slider"></span></label>
+            </div>
+            <select id="setDailySpecialItem" style="margin-bottom:1rem;">
+                <option value="">-- Pick daily special item --</option>
+            </select>
+            <div style="display:flex; gap:1rem; align-items:center; margin-bottom:1rem;">
+                <label>Enable Birthday Rewards</label><label class="switch"><input type="checkbox" id="setBirthdayRewards"><span class="slider"></span></label>
+            </div>
             <select id="setUpsellItem" style="margin-bottom:1rem;">
                 <option value="">-- Auto (pick best item) --</option>
             </select>
@@ -314,6 +323,7 @@
                     <label for="itemImageFile" class="btn">📷 Choose Photo</label>
                     <input type="file" id="itemImageFile" accept="image/*" style="display:none;">
                     <button id="autoImageBtn" class="btn">🖼️ Auto Image</button>
+                    <button id="aiDescBtn" class="btn">🤖 AI Description</button>
                     <img id="itemImagePreview" style="max-width:80px; max-height:80px; border-radius:8px; display:none;">
                 </div>
                 <div style="margin-bottom:1rem;">
@@ -451,7 +461,10 @@
                     avg_prep_time: parseInt(document.getElementById('setAvgPrepTime').value) || 5,
                     loyalty_enabled: document.getElementById('setLoyalty').checked,
                     upsell_enabled: document.getElementById('setUpsell').checked,
-                    upsell_item_id: document.getElementById('setUpsellItem').value || null
+                    upsell_item_id: document.getElementById('setUpsellItem').value || null,
+                    daily_special_enabled: document.getElementById('setDailySpecial').checked,
+                    daily_special_item_id: document.getElementById('setDailySpecialItem').value || null,
+                    birthday_rewards_enabled: document.getElementById('setBirthdayRewards').checked
                 };
                 const { error } = await _sb.from('cafes').update(u).eq('id', cafeData.id);
                 if (!error) {
@@ -467,6 +480,9 @@
         document.getElementById('setLoyalty').addEventListener('change', autoSave);
         document.getElementById('setUpsell').addEventListener('change', autoSave);
         document.getElementById('setUpsellItem').addEventListener('change', autoSave);
+        document.getElementById('setDailySpecial').addEventListener('change', autoSave);
+        document.getElementById('setDailySpecialItem').addEventListener('change', autoSave);
+        document.getElementById('setBirthdayRewards').addEventListener('change', autoSave);
 
         // Manual save button triggers immediate save
         document.getElementById('saveSettingsBtn').addEventListener('click', () => {
@@ -609,13 +625,16 @@
                 document.getElementById('setAvgPrepTime').value = cafeData.avg_prep_time || 5;
                 document.getElementById('setLoyalty').checked = cafeData.loyalty_enabled || false;
                 document.getElementById('setUpsell').checked = cafeData.upsell_enabled || false;
+                document.getElementById('setDailySpecial').checked = cafeData.daily_special_enabled || false;
+                document.getElementById('setBirthdayRewards').checked = cafeData.birthday_rewards_enabled || false;
                 if(cafeData.logo_url) {
                     document.getElementById('logoPreview').src = cafeData.logo_url;
                     document.getElementById('logoPreview').style.display = 'block';
                 }
 
-                // Load upsell item dropdown
+                // Load upsell & daily special dropdowns
                 await loadUpsellItemOptions();
+                await loadDailySpecialOptions();
 
                 document.getElementById('copyCafeIdBtn').addEventListener('click', () => {
                     navigator.clipboard.writeText(cafeData.id); toast('Cafe ID copied!');
@@ -680,6 +699,24 @@
                     }
                 });
 
+                // AI Description button
+                document.getElementById('aiDescBtn').addEventListener('click', async () => {
+                    const name = document.getElementById('itemName').value.trim();
+                    if (!name) return toast('Enter item name first', true);
+                    const res = await fetch(GEMINI_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+                        body: JSON.stringify({ promptExtra: `Write a delicious, mouth‑watering description (2‑3 sentences) for a menu item called "${name}".` })
+                    });
+                    const data = await res.json();
+                    if (data.result) {
+                        document.getElementById('itemDesc').value = data.result.replace(/^[\[\]\"]+|[\[\]\"]+$/g, '');
+                        toast('AI description generated!');
+                    } else {
+                        toast('AI failed to generate description', true);
+                    }
+                });
+
                 // Check subscription
                 const canAccess = await checkSubscription();
 
@@ -705,6 +742,22 @@
                     opt.value = item.id;
                     opt.textContent = item.name;
                     if (cafeData.upsell_item_id === item.id) opt.selected = true;
+                    sel.appendChild(opt);
+                });
+            }
+        }
+
+        async function loadDailySpecialOptions() {
+            const sel = document.getElementById('setDailySpecialItem');
+            sel.innerHTML = '<option value="">-- None (random daily) --</option>';
+            if (!cafeData) return;
+            const { data: items } = await _sb.from('menu_items').select('id, name').eq('cafe_id', cafeData.id).eq('available', true);
+            if (items) {
+                items.forEach(item => {
+                    const opt = document.createElement('option');
+                    opt.value = item.id;
+                    opt.textContent = item.name;
+                    if (cafeData.daily_special_item_id === item.id) opt.selected = true;
                     sel.appendChild(opt);
                 });
             }
