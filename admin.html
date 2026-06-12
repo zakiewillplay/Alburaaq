@@ -118,6 +118,14 @@
             </div>
             <button class="btn btn-primary" id="saveFeaturedBtn" style="width:100%; margin-top:0.8rem;">Save Featured</button>
         </div>
+
+        <!-- Support Requests -->
+        <div class="section">
+            <h2>📢 Support Requests</h2>
+            <div id="supportList" style="max-height:300px; overflow-y:auto;">
+                <p style="color:var(--muted);">No requests yet.</p>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -191,6 +199,9 @@
                 if (error) alert('Save failed: ' + error.message);
                 else alert('Featured cafes updated!');
             });
+
+            // Support requests
+            await loadSupportRequests();
         }
 
         async function loadCafes() {
@@ -203,7 +214,6 @@
                 const displayStatus = isExpired && status === 'trial' ? 'expired' : status;
                 const badgeClass = displayStatus === 'active' ? 'active' : (displayStatus === 'trial' ? 'trial' : (displayStatus === 'pending' ? 'pending' : 'expired'));
 
-                // Show transaction ID with Approve button if pending
                 const upiCell = (status === 'pending' && c.upi_transaction_id) 
                     ? `${c.upi_transaction_id} <button class="btn btn-primary" onclick="approveUpi('${c.id}')">Approve</button>` 
                     : (c.upi_transaction_id || (status === 'pending' ? 'No ID' : '—'));
@@ -221,6 +231,34 @@
                 </tr>`;
             }).join('');
         }
+
+        async function loadSupportRequests() {
+            const { data: requests, error } = await _sb.from('support_requests')
+                .select('id, message, created_at, cafe_id, cafes(cafe_name)')
+                .order('created_at', { ascending: false });
+            const container = document.getElementById('supportList');
+            if (error || !requests || requests.length === 0) {
+                container.innerHTML = '<p style="color:var(--muted);">No requests yet.</p>';
+                return;
+            }
+            container.innerHTML = requests.map(r => `
+                <div style="background:rgba(255,255,255,0.05); border-radius:12px; padding:0.8rem; margin-bottom:0.5rem;">
+                    <strong>${r.cafes?.cafe_name || 'Unknown Café'}</strong>
+                    <p style="margin:0.3rem 0; font-size:0.9rem;">${r.message}</p>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <small style="color:var(--muted);">${new Date(r.created_at).toLocaleString()}</small>
+                        <button class="btn btn-danger" onclick="deleteRequest('${r.id}')" style="padding:0.3rem 0.6rem; font-size:0.7rem;">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        window.deleteRequest = async (id) => {
+            if (!confirm('Delete this request?')) return;
+            const { error } = await _sb.from('support_requests').delete().eq('id', id);
+            if (error) alert('Delete failed: ' + error.message);
+            else loadSupportRequests();
+        };
 
         window.approveUpi = async (cafeId) => {
             if (!confirm('Approve this payment and activate subscription?')) return;
