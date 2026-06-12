@@ -3,1020 +3,953 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Digity Dashboard – Manage Your Café Menu</title>
-    <meta name="description" content="Digity dashboard – manage your digital menu, orders, QR codes, AI scanner, settings, and café news.">
-    <meta name="robots" content="noindex, nofollow">
-    <link rel="canonical" href="https://zakiewillplay.github.io/Digity/dashboard.html">
+    <title>Digity Menu – Order Now</title>
+    <meta name="description" content="Browse our digital menu and place your order instantly. Scan the QR code or tap the link to get started.">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://zakiewillplay.github.io/Digity/menu.html">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
     <style>
         :root {
             --amber: #e8921a; --amber-lt: #f5b445; --amber-glow: rgba(232,146,26,0.15);
             --espresso: #120b05; --card-bg: rgba(26,14,6,0.97); --card-border: rgba(232,146,26,0.16);
             --glass: rgba(20,11,4,0.90); --glass-border: rgba(232,146,26,0.22);
             --text: #f2e2c8; --muted: #9a8068; --radius: 18px; --shadow: 0 8px 32px rgba(0,0,0,0.65);
+            --shadow-hover: 0 18px 50px rgba(0,0,0,0.85), 0 0 24px rgba(232,146,26,0.1);
         }
         body.light-mode {
             --espresso: #f8f2e8; --card-bg: rgba(255,252,246,1); --card-border: rgba(190,95,20,0.13);
             --glass: rgba(248,242,232,0.96); --glass-border: rgba(190,95,20,0.18);
             --text: #1c0f05; --muted: #7a5c3a; --shadow: 0 4px 22px rgba(0,0,0,0.07);
+            --shadow-hover: 0 12px 40px rgba(0,0,0,0.13), 0 0 16px rgba(190,95,20,0.09);
         }
         * { margin:0; padding:0; box-sizing:border-box; }
-        html,body { width:100%; overflow-x:hidden; }
         body {
-            font-family:'Plus Jakarta Sans', sans-serif;
+            font-family:'Plus Jakarta Sans', system-ui, sans-serif;
             background: var(--espresso); color: var(--text);
-            transition: background 0.4s, color 0.4s; min-height:100vh;
+            overflow-x: hidden; min-height: 100vh;
+            -webkit-tap-highlight-color: transparent;
+            transition: background 0.4s ease, color 0.4s ease;
         }
         h1,h2,h3 { font-family:'Cormorant Garamond', serif; }
-        .container { max-width:1200px; margin:0 auto; padding:1.5rem 1.2rem 100px; position:relative; z-index:2; }
-        .header-row { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; margin-bottom:2rem; }
-        .logo { font-size:2rem; font-weight:700; color:var(--amber); font-family:'Cormorant Garamond', serif; }
-        .header-actions { display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; }
-        .header-actions button, .header-actions select {
-            padding:0.55rem 1rem; border-radius:30px; border:1px solid var(--glass-border);
-            background:var(--glass); color:var(--text); cursor:pointer; font-size:0.82rem; font-weight:600;
-            font-family:'Plus Jakarta Sans',sans-serif; transition:0.2s;
+        .cloche-overlay {
+            position:fixed; inset:0; background:#0d0703; z-index:1000;
+            display:flex; align-items:center; justify-content:center; flex-direction:column;
+            animation:clocheExit 0.7s ease 2s forwards;
         }
-        .header-actions button:hover, .header-actions select:hover { border-color:var(--amber); color:var(--amber); }
-        .btn-sm { padding:0.3rem 0.7rem !important; font-size:0.72rem !important; }
-        .card {
-            background:var(--card-bg); border:1px solid var(--card-border);
-            border-radius:var(--radius); padding:1.5rem; margin-bottom:1.2rem; box-shadow:var(--shadow);
+        @keyframes clocheExit { to { opacity:0; visibility:hidden; } }
+        .cloche-scene { display:flex; flex-direction:column; align-items:center; }
+        .cloche-dome {
+            width:130px; height:94px; border-radius:65px 65px 0 0;
+            background:linear-gradient(145deg, #d4ccc4 0%, #969088 40%, #5a5450 100%);
+            position:relative; box-shadow:0 8px 28px rgba(0,0,0,0.6);
         }
-        .card-title {
-            font-size:1.4rem; font-weight:600; color:var(--amber); margin-bottom:1rem;
-            display:flex; justify-content:space-between; align-items:center; cursor:pointer;
+        .cloche-dome::before {
+            content:''; position:absolute; top:18px; left:18px;
+            width:44px; height:22px; background:rgba(255,255,255,0.14);
+            border-radius:50%; transform:rotate(-18deg);
         }
-        .collapsed .card-body { display:none; }
-        .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:1rem; margin-bottom:1.5rem; }
-        .stat-box { text-align:center; padding:1rem; border-radius:14px; background:var(--card-bg); border:1px solid var(--card-border); }
-        .stat-num { font-size:2.2rem; font-weight:800; color:var(--amber); }
-        .btn { padding:0.6rem 1.2rem; border-radius:30px; border:1px solid var(--glass-border); background:var(--glass); color:var(--text); cursor:pointer; font-weight:600; font-size:0.82rem; font-family:'Plus Jakarta Sans',sans-serif; transition:0.2s; }
-        .btn:hover { border-color:var(--amber); color:var(--amber); }
-        .btn-primary { background:var(--amber); color:#fff; border:none; }
-        .btn-primary:hover { background:var(--amber-lt); }
-        input, select, textarea {
-            width:100%; padding:0.65rem 0.9rem; border-radius:10px;
+        .cloche-dome::after {
+            content:''; position:absolute; top:-14px; left:50%;
+            transform:translateX(-50%); width:18px; height:18px;
+            border-radius:50%; background:linear-gradient(145deg, #d0c8c0, #909090);
+            box-shadow:0 2px 8px rgba(0,0,0,0.4);
+        }
+        .cloche-plate {
+            width:154px; height:11px; border-radius:50%;
+            background:linear-gradient(180deg, #e0d8d0 0%, #b0a898 100%);
+            box-shadow:0 4px 14px rgba(0,0,0,0.5); margin-top:-1px;
+        }
+        .cloche-steam {
+            display:flex; gap:10px; position:absolute; top:-34px;
+            left:50%; transform:translateX(-50%); width:70px; justify-content:center;
+        }
+        .steam-line {
+            width:3px; border-radius:3px; background:rgba(255,255,255,0.25);
+            animation:steamRise 1.6s ease-in-out infinite;
+        }
+        .steam-line:nth-child(1){ height:18px; animation-delay:0s; }
+        .steam-line:nth-child(2){ height:24px; animation-delay:0.25s; }
+        .steam-line:nth-child(3){ height:15px; animation-delay:0.5s; }
+        @keyframes steamRise {
+            0%,100% { transform:translateY(0) scaleX(1); opacity:0; }
+            30% { opacity:0.8; }
+            80% { transform:translateY(-18px) scaleX(1.3); opacity:0; }
+        }
+        .cloche-tagline {
+            font-family:'Cormorant Garamond', serif;
+            font-size:1.05rem; letter-spacing:5px; text-transform:uppercase;
+            color:rgba(232,146,26,0.55); margin-top:2.4rem;
+        }
+        .menu-content {
+            max-width:900px; margin:0 auto; padding:1.5rem 1.5rem 130px;
+            position:relative; z-index:2; opacity:0;
+            animation:contentReveal 0.9s ease 2.1s forwards;
+        }
+        @keyframes contentReveal { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+        .top-bar { display:flex; justify-content:flex-end; gap:0.5rem; margin-bottom:2rem; }
+        .top-btn {
+            padding:0.48rem 1.05rem; border-radius:40px; border:1px solid var(--glass-border);
+            background:var(--glass); color:var(--text); cursor:pointer;
+            font-size:0.78rem; font-weight:600; font-family:'Plus Jakarta Sans', sans-serif;
+            transition:border-color 0.25s, color 0.25s, transform 0.25s;
+        }
+        .top-btn:hover { border-color:var(--amber); color:var(--amber); transform:translateY(-2px); }
+        .top-btn.listening { background:var(--amber); color:#fff; animation:micPulse 0.8s ease-in-out infinite; }
+        @keyframes micPulse {
+            0%,100% { transform:scale(1); box-shadow:0 0 0 0 rgba(232,146,26,0.7); }
+            50% { transform:scale(1.08); box-shadow:0 0 0 8px rgba(232,146,26,0); }
+        }
+        header.menu-header { text-align:center; padding:2.2rem 0 2.8rem; margin-bottom:1.8rem; }
+        .header-eyebrow {
+            display:inline-flex; align-items:center; gap:0.7rem;
+            font-size:0.7rem; font-weight:700; letter-spacing:4.5px;
+            text-transform:uppercase; color:var(--amber); opacity:0.75; margin-bottom:0.9rem;
+        }
+        .header-eyebrow::before, .header-eyebrow::after {
+            content:''; width:28px; height:1px; background:linear-gradient(90deg, transparent, var(--amber));
+        }
+        .header-eyebrow::after { transform:scaleX(-1); }
+        header.menu-header h1 {
+            font-size:clamp(3rem, 8vw, 5.2rem); font-weight:700; line-height:1.08;
+            background:linear-gradient(160deg, #f7d9a0 0%, var(--amber-lt) 35%, var(--amber) 65%, #b85a10 100%);
+            -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+            margin-bottom:0.9rem;
+        }
+        header.menu-header p { font-size:0.92rem; color:var(--muted); max-width:420px; margin:0 auto; line-height:1.65; }
+        .header-rule { display:flex; align-items:center; gap:0.8rem; margin:1.8rem auto 0; width:fit-content; }
+        .header-rule span { width:60px; height:1px; background:linear-gradient(90deg, transparent, var(--amber)); }
+        .header-rule span:last-child { transform:scaleX(-1); }
+        .header-rule em { font-style:normal; font-size:0.9rem; color:var(--amber); opacity:0.55; }
+        .search-container { position:sticky; top:10px; z-index:40; margin-bottom:1.2rem; }
+        .search-wrap { position:relative; }
+        .search-icon { position:absolute; left:1.15rem; top:50%; transform:translateY(-50%); font-size:0.95rem; opacity:0.38; pointer-events:none; }
+        .search-bar {
+            width:100%; padding:0.92rem 1.4rem 0.92rem 2.9rem; border-radius:40px;
             border:1px solid var(--glass-border); background:var(--glass);
-            color:var(--text); font-family:'Plus Jakarta Sans',sans-serif; font-size:0.85rem; margin-bottom:0.8rem; transition:0.2s;
+            backdrop-filter:blur(20px); color:var(--text); font-size:0.93rem;
+            font-family:'Plus Jakarta Sans', sans-serif; box-shadow:var(--shadow);
         }
-        input:focus, select:focus, textarea:focus { outline:none; border-color:var(--amber); }
-        .tabs { display:flex; gap:0.3rem; margin-bottom:1rem; }
-        .tab { flex:1; padding:0.5rem; text-align:center; border-radius:8px; background:transparent; border:1px solid var(--glass-border); color:var(--muted); cursor:pointer; font-weight:600; font-size:0.82rem; transition:0.2s; }
-        .tab.active { background:var(--amber); color:#fff; border-color:var(--amber); }
-        .qr-box img { background:#fff; padding:0.5rem; border-radius:12px; margin-top:1rem; max-width:200px; }
-        .toast-container { position:fixed; top:20px; right:20px; z-index:999; display:flex; flex-direction:column; gap:10px; }
-        .toast { background:var(--amber); color:#fff; padding:0.7rem 1.2rem; border-radius:30px; font-weight:600; font-size:0.85rem; animation: slideIn 0.3s ease; }
-        .toast.error { background:#c0392b; }
-        @keyframes slideIn { from{transform:translateX(100%);opacity:0} to{transform:none;opacity:1} }
-        .news-item { background:var(--glass); border:1px solid var(--glass-border); border-radius:14px; padding:0.8rem; margin-bottom:0.5rem; }
-        .news-item h4 { font-size:1rem; color:var(--amber); margin-bottom:0.2rem; }
-        .news-item p { font-size:0.82rem; color:var(--muted); }
-        .switch { position:relative; display:inline-block; width:44px; height:24px; }
-        .switch input { opacity:0; width:0; height:0; }
-        .slider { position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background:#555; border-radius:24px; transition:0.3s; }
-        .slider:before { position:absolute; content:""; height:18px; width:18px; left:3px; bottom:3px; background:white; border-radius:50%; transition:0.3s; }
-        input:checked+.slider { background:var(--amber); }
-        input:checked+.slider:before { transform:translateX(20px); }
-
-        /* Settings modal */
-        .modal-overlay {
-            position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:100;
-            display:flex; align-items:center; justify-content:center; padding:1rem;
-            opacity:0; pointer-events:none; transition:opacity 0.3s;
+        .search-bar::placeholder { color:var(--muted); }
+        .search-bar:focus { outline:none; border-color:var(--amber); box-shadow:0 0 0 4px var(--amber-glow), var(--shadow); }
+        .category-tabs {
+            display:flex; gap:0.45rem; overflow-x:auto; scrollbar-width:none;
+            position:sticky; top:62px; z-index:39; background:var(--espresso);
+            padding:10px 0; margin-bottom:2rem; transition:background 0.4s;
         }
-        .modal-overlay.open { opacity:1; pointer-events:auto; }
-        .modal {
-            background:var(--card-bg); border:1px solid var(--amber);
-            border-radius:var(--radius); padding:2rem; width:100%; max-width:600px;
-            max-height:90vh; overflow-y:auto; position:relative;
+        .category-tabs::-webkit-scrollbar { display:none; }
+        .cat-btn {
+            flex-shrink:0; padding:0.52rem 1.25rem; border-radius:30px;
+            border:1px solid var(--glass-border); background:transparent;
+            color:var(--muted); cursor:pointer; font-size:0.83rem; font-weight:600;
+            font-family:'Plus Jakarta Sans', sans-serif; transition:all 0.28s cubic-bezier(0.4,0,0.2,1);
+            white-space:nowrap;
         }
-        .modal-close {
-            position:absolute; top:1rem; right:1rem; background:none; border:none;
-            color:var(--text); font-size:1.5rem; cursor:pointer;
+        .cat-btn:hover { color:var(--text); border-color:rgba(232,146,26,0.35); }
+        .cat-btn.active { background:var(--amber); color:#fff; border-color:var(--amber); box-shadow:0 4px 18px rgba(232,146,26,0.32); transform:scale(1.05); }
+        .category-section { margin-bottom:0.5rem; }
+        .section-heading {
+            display:flex; align-items:center; gap:1rem;
+            font-size:1.95rem; font-weight:600; margin:2.8rem 0 1.4rem; color:var(--text);
         }
-
-        /* Paywall overlay */
-        .paywall-overlay {
-            position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:200;
-            display:flex; align-items:center; justify-content:center; padding:1rem;
+        .section-heading::after { content:''; flex:1; height:1px; background:linear-gradient(90deg, var(--glass-border), transparent); }
+        .menu-item {
+            display:flex; gap:1.4rem; align-items:center;
+            background:var(--card-bg); border:1px solid var(--card-border);
+            border-radius:var(--radius); padding:1.35rem; margin-bottom:0.95rem;
+            position:relative; overflow:hidden; box-shadow:var(--shadow);
+            transition:transform 0.32s cubic-bezier(0.4,0,0.2,1), box-shadow 0.32s ease, border-color 0.32s ease;
+            opacity:0; cursor:default;
         }
-        .paywall-card {
-            background:var(--card-bg); border:1px solid var(--amber);
-            border-radius:var(--radius); padding:2rem; max-width:400px; text-align:center;
+        .menu-item::before {
+            content:''; position:absolute; inset:0; border-radius:var(--radius);
+            background:linear-gradient(105deg, transparent 30%, rgba(232,146,26,0.04) 50%, transparent 70%);
+            transform:translateX(-100%); transition:transform 0.5s ease;
         }
-        @media (max-width:600px) {
-            .header-row { flex-direction:column; align-items:flex-start; }
-            .container { padding:1rem 0.8rem 90px; }
+        .menu-item:hover { transform:translateY(-5px); box-shadow:var(--shadow-hover); border-color:rgba(232,146,26,0.38); }
+        .menu-item:hover::before { transform:translateX(100%); }
+        .img-wrap { width:106px; height:106px; border-radius:12px; overflow:hidden; flex-shrink:0; background:rgba(232,146,26,0.05); }
+        .menu-item-img { width:100%; height:100%; object-fit:cover; transition:transform 0.45s cubic-bezier(0.4,0,0.2,1); }
+        .menu-item:hover .menu-item-img { transform:scale(1.1); }
+        .item-details { flex:1; min-width:0; }
+        .item-name { font-family:'Cormorant Garamond', serif; font-size:1.32rem; font-weight:600; color:var(--text); display:flex; align-items:flex-start; flex-wrap:wrap; gap:0.45rem; line-height:1.3; margin-bottom:0.2rem; }
+        .item-desc { font-size:0.81rem; color:var(--muted); line-height:1.56; margin-top:0.2rem; }
+        .item-price { font-weight:800; font-size:1.25rem; color:var(--amber); margin-top:0.55rem; font-family:'Plus Jakarta Sans', sans-serif; }
+        .badge { padding:2px 8px; border-radius:6px; font-size:0.6rem; font-weight:700; text-transform:uppercase; letter-spacing:0.9px; font-family:'Plus Jakarta Sans', sans-serif; flex-shrink:0; line-height:1.6; }
+        .badge-featured { background:rgba(241,196,15,0.1); color:#f1c40f; border:1px solid rgba(241,196,15,0.28); }
+        .badge-new      { background:rgba(46,204,113,0.1); color:#2ecc71; border:1px solid rgba(46,204,113,0.24); }
+        .badge-discount { background:rgba(231,76,60,0.1); color:#e74c3c; border:1px solid rgba(231,76,60,0.24); }
+        .variant-pills { display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.5rem; }
+        .variant-pill { padding:0.4rem 1rem; border-radius:20px; border:1px solid var(--glass-border); background:transparent; color:var(--text); cursor:pointer; font-size:0.85rem; transition:all 0.3s; font-weight:500; }
+        .variant-pill.selected { background:var(--amber); color:#000; border-color:var(--amber); }
+        .qty-controls { display:flex; align-items:center; gap:0.5rem; margin-left:auto; flex-shrink:0; }
+        .qty-btn { width:36px; height:36px; border-radius:50%; border:1.5px solid var(--glass-border); background:transparent; color:var(--text); cursor:pointer; font-size:1.15rem; display:flex; align-items:center; justify-content:center; transition:all 0.22s cubic-bezier(0.4,0,0.2,1); position:relative; overflow:hidden; user-select:none; }
+        .qty-btn:hover { border-color:var(--amber); color:var(--amber); }
+        .qty-btn:active { transform:scale(0.82); }
+        .qty-btn.has-qty { border-color:rgba(232,146,26,0.55); color:var(--amber); background:rgba(232,146,26,0.09); }
+        .qty-num { font-weight:700; font-size:0.98rem; min-width:22px; text-align:center; transition:transform 0.18s cubic-bezier(0.4,0,0.2,1); }
+        .qty-num.bump { animation:numBump 0.28s cubic-bezier(0.4,0,0.2,1); }
+        @keyframes numBump { 0%,100%{transform:scale(1)} 50%{transform:scale(1.45)} }
+        .floating-cart { position:fixed; bottom:90px; right:30px; width:62px; height:62px; border-radius:50%; background:var(--amber); color:#fff; border:none; font-size:1.48rem; cursor:pointer; z-index:49; box-shadow:0 8px 28px rgba(232,146,26,0.42); display:flex; align-items:center; justify-content:center; transition:transform 0.3s cubic-bezier(0.4,0,0.2,1), box-shadow 0.3s ease; }
+        .floating-cart:hover { transform:scale(1.1); box-shadow:0 14px 38px rgba(232,146,26,0.55); }
+        .floating-cart.pulse { animation:cartBounce 0.55s cubic-bezier(0.4,0,0.2,1); }
+        @keyframes cartBounce { 0%,100%{transform:scale(1)} 30%{transform:scale(1.28)} 60%{transform:scale(0.92)} 80%{transform:scale(1.06)} }
+        .waiter-btn { position:fixed; bottom:90px; left:30px; width:62px; height:62px; border-radius:50%; background:linear-gradient(145deg, #c0392b, #96281b); color:#fff; border:none; font-size:1.35rem; cursor:pointer; z-index:48; box-shadow:0 8px 24px rgba(192,57,43,0.4); display:flex; align-items:center; justify-content:center; transition:transform 0.28s ease, box-shadow 0.28s ease; }
+        .waiter-btn:hover { transform:scale(1.1); box-shadow:0 14px 34px rgba(192,57,43,0.5); }
+        .waiter-btn.ring { animation:waiterRing 0.6s ease; }
+        @keyframes waiterRing { 0%,100%{transform:rotate(0deg)} 20%{transform:rotate(-18deg)} 50%{transform:rotate(18deg)} 75%{transform:rotate(-10deg)} }
+        .cart-badge { position:absolute; top:-6px; right:-6px; background:#e74c3c; color:#fff; width:22px; height:22px; border-radius:50%; font-size:0.72rem; font-weight:700; display:none; align-items:center; justify-content:center; border:2.5px solid var(--espresso); }
+        .cart-badge.pop { animation:badgePop 0.35s cubic-bezier(0.4,0,0.2,1); }
+        @keyframes badgePop { 0%,100%{transform:scale(1)} 50%{transform:scale(1.5)} }
+        .cart-panel { position:fixed; bottom:0; left:0; right:0; background:var(--card-bg); border-radius:26px 26px 0 0; transform:translateY(100%); visibility:hidden; opacity:0; transition:transform 0.46s cubic-bezier(0.4,0,0.2,1), opacity 0.4s ease; z-index:50; max-height:88vh; overflow-y:auto; box-shadow:0 -22px 60px rgba(0,0,0,0.55); border-top:1px solid var(--card-border); }
+        .cart-panel.open { transform:translateY(0); visibility:visible; opacity:1; }
+        .cart-handle { width:38px; height:4px; background:var(--glass-border); border-radius:2px; margin:14px auto 0; }
+        .cart-inner { padding:1.5rem 2rem 2rem; }
+        .cart-header { display:flex; align-items:baseline; justify-content:space-between; margin-bottom:1.4rem; }
+        .cart-title { font-size:2.1rem; font-weight:600; color:var(--text); }
+        .cart-subtitle { font-size:0.85rem; color:var(--muted); font-family:'Plus Jakarta Sans',sans-serif; font-weight:500; }
+        .cart-item-row { display:flex; justify-content:space-between; align-items:center; padding:0.85rem 0; border-bottom:1px solid var(--glass-border); gap:1rem; }
+        .cart-item-name  { flex:1; font-size:0.9rem; font-weight:500; }
+        .cart-item-price { font-size:0.9rem; font-weight:700; color:var(--amber); flex-shrink:0; }
+        .cart-total-row { display:flex; justify-content:space-between; align-items:baseline; margin:1.3rem 0 1.6rem; }
+        .cart-total-label { font-size:0.85rem; color:var(--muted); font-weight:500; }
+        .cart-total-val   { font-size:1.65rem; font-weight:800; color:var(--amber); }
+        .cart-input { width:100%; padding:0.88rem 1.15rem; border-radius:12px; border:1px solid var(--glass-border); background:rgba(255,255,255,0.03); color:var(--text); font-size:0.92rem; font-family:'Plus Jakarta Sans', sans-serif; outline:none; transition:border-color 0.3s, box-shadow 0.3s; margin-bottom:0.75rem; }
+        .cart-input::placeholder { color:var(--muted); }
+        .cart-input:focus { border-color:var(--amber); box-shadow:0 0 0 3px var(--amber-glow); }
+        .btn-order { width:100%; padding:1.1rem; border-radius:13px; background:var(--amber); color:#fff; border:none; font-weight:800; font-size:1rem; font-family:'Plus Jakarta Sans', sans-serif; cursor:pointer; margin-bottom:0.75rem; box-shadow:0 6px 22px rgba(232,146,26,0.38); transition:transform 0.22s ease, box-shadow 0.22s ease; letter-spacing:0.3px; }
+        .btn-order:hover { transform:translateY(-2px); box-shadow:0 10px 30px rgba(232,146,26,0.48); }
+        .btn-order:active { transform:translateY(0) scale(0.98); }
+        .btn-close-cart { width:100%; padding:0.88rem; background:transparent; border:1px solid var(--glass-border); color:var(--muted); border-radius:13px; cursor:pointer; font-weight:600; font-size:0.88rem; font-family:'Plus Jakarta Sans', sans-serif; transition:border-color 0.2s, color 0.2s; }
+        .btn-close-cart:hover { border-color:var(--amber); color:var(--text); }
+        .toast-container { position:fixed; top:18px; left:50%; transform:translateX(-50%); z-index:9999; display:flex; flex-direction:column; gap:8px; pointer-events:none; min-width:220px; align-items:center; }
+        .toast { background:var(--card-bg); color:var(--text); padding:10px 22px; border-radius:30px; border:1px solid var(--amber); box-shadow:0 8px 28px rgba(0,0,0,0.35), 0 0 14px rgba(232,146,26,0.1); font-weight:600; font-size:0.84rem; white-space:nowrap; animation:toastIn 0.4s cubic-bezier(0.4,0,0.2,1), toastOut 0.4s ease 2.5s forwards; }
+        @keyframes toastIn { from{transform:translateY(-28px) scale(0.88);opacity:0} to{transform:translateY(0) scale(1);opacity:1} }
+        @keyframes toastOut { to{opacity:0;transform:translateY(-20px) scale(0.9)} }
+        .success-overlay { position:fixed; inset:0; background:rgba(10,5,1,0.97); z-index:60; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:0.8rem; opacity:0; pointer-events:none; transition:opacity 0.45s ease; }
+        .success-overlay.show { opacity:1; pointer-events:auto; }
+        .success-icon { font-size:4.5rem; animation:iconPop 0.55s cubic-bezier(0.175,0.885,0.32,1.275) 0.1s both; }
+        @keyframes iconPop { from { transform:scale(0) rotate(-35deg); opacity:0; } to { transform:scale(1) rotate(0deg); opacity:1; } }
+        .success-title { font-family:'Cormorant Garamond', serif; font-size:2.1rem; color:var(--text); font-weight:600; animation:fadeUp 0.5s ease 0.35s both; }
+        .success-sub { font-size:0.88rem; color:var(--muted); text-align:center; line-height:1.6; animation:fadeUp 0.5s ease 0.5s both; }
+        @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:none} }
+        .empty-state { text-align:center; padding:4rem 2rem; color:var(--muted); }
+        .empty-icon { font-size:2.8rem; margin-bottom:0.8rem; opacity:0.35; }
+        /* Fixed news ticker */
+        .news-ticker {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--card-bg);
+            border-top: 1px solid var(--amber);
+            padding: 0.9rem 1.2rem;
+            z-index: 45;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+            min-height: 50px;
+        }
+        .news-ticker i { color: var(--amber); font-size: 1.1rem; }
+        .news-ticker span {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .floating-cart { bottom: 80px; }
+        .waiter-btn { bottom: 80px; }
+        .menu-content { padding-bottom: 120px !important; }
+        /* Spotlight card */
+        .spotlight-card {
+            background: var(--card-bg); border: 1px solid var(--amber);
+            border-radius: 14px; padding: 1rem; margin-bottom: 1.5rem;
+            display: flex; gap: 1rem; align-items: center;
+        }
+        .spotlight-card a { color: var(--amber); text-decoration: none; font-weight: bold; }
+        .maintenance-msg { text-align: center; padding: 4rem 2rem; }
+        .maintenance-msg h2 { color: var(--amber); }
+        /* Dietary filter chips */
+        .dietary-filters {
+            display:flex; gap:0.5rem; overflow-x:auto; padding:0.5rem 0; margin-bottom:1rem;
+        }
+        .dietary-chip {
+            padding:0.4rem 1rem; border-radius:20px; border:1px solid var(--glass-border);
+            background:transparent; color:var(--muted); cursor:pointer; font-size:0.78rem;
+            font-weight:600; white-space:nowrap; transition:all 0.2s;
+        }
+        .dietary-chip.active { background:var(--amber); color:#fff; border-color:var(--amber); }
+        /* Wait time banner */
+        .wait-banner {
+            text-align:center; padding:0.6rem; background:rgba(232,146,26,0.1);
+            border-radius:12px; margin-bottom:1rem; font-size:0.85rem; color:var(--amber);
+        }
+        /* Reviews section */
+        .reviews-section {
+            margin-top:2rem; padding:1.5rem;
+            background:var(--card-bg); border:1px solid var(--card-border);
+            border-radius:var(--radius);
+        }
+        .review-item { border-bottom:1px solid var(--glass-border); padding:0.8rem 0; }
+        .stars { color:var(--amber); }
+        /* Loyalty badge */
+        .loyalty-badge {
+            position:fixed; bottom:160px; right:20px; background:var(--amber);
+            color:#fff; border-radius:50%; width:50px; height:50px;
+            display:flex; align-items:center; justify-content:center;
+            font-weight:800; font-size:0.8rem; z-index:47;
+            box-shadow:0 4px 12px rgba(232,146,26,0.4);
+        }
+        /* WhatsApp button */
+        .whatsapp-btn {
+            position:fixed; bottom:140px; right:30px; width:56px; height:56px;
+            border-radius:50%; background:#25d366; color:#fff; border:none;
+            font-size:1.4rem; cursor:pointer; z-index:49; display:flex;
+            align-items:center; justify-content:center; text-decoration:none;
+            box-shadow:0 4px 12px rgba(37,211,102,0.4);
+        }
+        @media (max-width:640px) {
+            .menu-content { padding:1.2rem 1.2rem 140px; }
+            .menu-item { gap:0.9rem !important; padding:1rem !important; border-radius:14px !important; }
+            .img-wrap  { width:80px !important; height:80px !important; }
+            .item-name { font-size:1.12rem !important; }
+            .item-desc { font-size:0.77rem !important; line-height:1.4 !important; display:-webkit-box !important; -webkit-line-clamp:2 !important; -webkit-box-orient:vertical !important; overflow:hidden !important; }
+            .item-price { font-size:1.1rem !important; margin-top:0.3rem !important; }
+            .qty-controls { flex-direction:column !important; gap:0.3rem !important; margin-left:auto !important; }
+            .qty-btn { width:30px !important; height:30px !important; font-size:1rem !important; }
+            .qty-num { font-size:0.9rem !important; min-width:18px !important; }
+            header.menu-header h1 { font-size:2.6rem !important; }
+            .floating-cart, .waiter-btn { width:54px !important; height:54px !important; font-size:1.3rem !important; bottom:80px !important; }
+            .floating-cart { right:18px !important; }
+            .waiter-btn { left:18px !important; }
+            .search-container { top:0 !important; }
+            .category-tabs { top:56px !important; }
+            .cart-inner { padding:1.2rem 1.4rem 1.6rem !important; }
+            .whatsapp-btn { bottom:130px; right:18px; }
+            .loyalty-badge { bottom:150px; right:18px; }
         }
     </style>
 </head>
 <body>
     <div class="toast-container" id="toastContainer"></div>
+    <div class="cloche-overlay" id="clocheOverlay">
+        <div class="cloche-scene">
+            <div class="cloche-steam"><div class="steam-line"></div><div class="steam-line"></div><div class="steam-line"></div></div>
+            <div class="cloche-dome"></div>
+            <div class="cloche-plate"></div>
+        </div>
+        <p class="cloche-tagline">Your Table is Ready</p>
+    </div>
 
-    <!-- Paywall overlay -->
-    <div id="paywallOverlay" class="paywall-overlay" style="display:none;">
-        <div class="paywall-card">
-            <h2 style="color:var(--amber); margin-bottom:1rem;">🚫 Subscription Required</h2>
-            <p style="margin-bottom:1rem;">Your free trial has ended. Please pay to continue using Digity.</p>
-            <div id="paywallUpiId" style="font-weight:bold; margin-bottom:0.5rem;"></div>
-            <div id="paywallPrice" style="font-size:1.5rem; margin-bottom:1rem;"></div>
-            <img id="paywallQr" src="" style="max-width:200px; margin-bottom:1rem; display:none;">
-            <input id="upiTransactionId" placeholder="Enter UPI Transaction ID" style="margin-bottom:1rem;">
-            <button id="submitUpiBtn" class="btn-primary" style="width:100%;">Submit Payment</button>
+    <div class="menu-content">
+        <div class="top-bar">
+            <button class="top-btn" id="themeToggle">🌙 Dark</button>
+            <select class="top-btn" id="langToggle"><option value="en">English</option><option value="hi">हिन्दी</option></select>
+            <button class="top-btn" id="shareBtn">📤 Share</button>
+            <button class="top-btn" id="voiceOrderBtn" title="Order by voice">🎤</button>
+        </div>
+        <div id="busyBanner" style="display:none; background:#c0392b; color:#fff; text-align:center; padding:10px; position:fixed; top:0; left:0; right:0; z-index:100;">Heavy rush! Wait ~<span id="waitTimeDisplay"></span> mins</div>
+
+        <!-- Estimated wait time -->
+        <div id="waitBanner" class="wait-banner" style="display:none;">
+            ⏱️ Estimated wait time: <span id="waitTime">--</span> minutes
+        </div>
+
+        <!-- Dietary filters -->
+        <div class="dietary-filters" id="dietaryFilters">
+            <button class="dietary-chip active" data-filter="all">All</button>
+            <button class="dietary-chip" data-filter="vegan">🌱 Vegan</button>
+            <button class="dietary-chip" data-filter="jain">🕉️ Jain</button>
+            <button class="dietary-chip" data-filter="gluten-free">🌾 GF</button>
+        </div>
+
+        <div id="menuVisible">
+            <!-- Spotlight container -->
+            <div id="spotlightContainer"></div>
+            <!-- Maintenance message -->
+            <div id="maintenanceMsg" style="display:none;" class="maintenance-msg">
+                <h2>🚧 Under Maintenance</h2>
+                <p>The menu is currently unavailable. Please check back later.</p>
+            </div>
+            <!-- Normal menu -->
+            <div id="normalMenu">
+                <header class="menu-header">
+                    <div id="cafeLogoContainer" style="margin-bottom: 1rem; display: none;">
+                        <img id="cafeLogoImg" src="" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid var(--amber); box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+                    </div>
+                    <p class="header-eyebrow">Est. 2024 &nbsp;·&nbsp; Welcome</p>
+                    <h1 id="cafeNameDisplay">Loading…</h1>
+                    <p id="cafeDesc"></p>
+                    <div class="header-rule"><span></span><em>✦</em><span></span></div>
+                </header>
+                <div class="search-container"><div class="search-wrap"><span class="search-icon">🔍</span><input type="text" class="search-bar" id="searchBar" placeholder="Search dishes, drinks…"></div></div>
+                <div class="category-tabs" id="categoryTabs"></div>
+                <div id="menuSections"></div>
+
+                <!-- Reviews section -->
+                <div id="reviewsSection" class="reviews-section" style="display:none;">
+                    <h3>⭐ Customer Reviews</h3>
+                    <div id="reviewsList"></div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- Settings Modal -->
-    <div id="settingsModal" class="modal-overlay">
-        <div class="modal">
-            <button class="modal-close" id="closeSettingsModal">&times;</button>
-            <h3 style="color:var(--amber); margin-bottom:1rem;">⚙️ Settings</h3>
-            <input id="setCafeName" placeholder="Cafe Name">
-            <input id="setWhatsapp" placeholder="WhatsApp Number">
-            <textarea id="setDesc" rows="2" placeholder="Short Description"></textarea>
-            <div style="display:flex; gap:1rem; margin-bottom:1rem;">
-                <div><input type="color" id="setPrimary" value="#e8921a"> Primary</div>
-                <div><input type="color" id="setAccent" value="#2F3E46"> Accent</div>
-            </div>
-            <input id="setGooglePlaceId" placeholder="Google Place ID">
-            <label>Telegram Chat ID</label>
-            <div style="display:flex; gap:0.5rem; margin-bottom:1rem; align-items:center;">
-                <input id="setTelegramChatId" placeholder="e.g. -1001234567" style="flex:1;">
-                <button id="getFromBotBtn" class="btn btn-sm">🤖 Get from Bot</button>
-                <button id="testTelegramBtn" class="btn btn-sm">📡 Test</button>
-                <button id="openBotBtn" class="btn btn-sm">💬 Open Bot</button>
-            </div>
-            <label>Cafe ID (share with staff)</label>
-            <div style="display:flex; gap:0.5rem; margin-bottom:1rem;">
-                <input id="cafeIdDisplay" readonly value="" style="flex:1; background:var(--glass);">
-                <button id="copyCafeIdBtn" class="btn" style="width:auto;">📋 Copy</button>
-            </div>
-            <input id="setInstagram" placeholder="Instagram URL">
-            <input id="setFacebook" placeholder="Facebook URL">
-            <input id="setGoogleReview" placeholder="Google Review Link">
-            <div style="display:flex; gap:1rem; align-items:center; margin-bottom:1rem;">
-                <label>Cafe Logo</label>
-                <button id="uploadLogoBtn" class="btn">📷 Upload</button>
-                <img id="logoPreview" style="max-width:60px; max-height:60px; border-radius:50%; display:none;">
-            </div>
-            <button id="saveSettingsBtn" class="btn-primary" style="width:100%;">Save Settings</button>
+    <button class="floating-cart" id="floatingCart">🛒<span class="cart-badge" id="cartBadge">0</span></button>
+    <button class="waiter-btn" id="waiterBtn">👋</button>
+
+    <div class="cart-panel" id="cartPanel">
+        <div class="cart-handle"></div>
+        <div class="cart-inner">
+            <div class="cart-header"><span class="cart-title">Your Order</span><span class="cart-subtitle" id="cartCountLabel"></span></div>
+            <div id="cartItemsList"></div>
+            <div class="cart-total-row"><span class="cart-total-label">Total</span><span class="cart-total-val">₹<span id="cartTotal">0</span></span></div>
+            <input class="cart-input" id="tableNumber" placeholder="Table Number *">
+            <input class="cart-input" id="customerName" placeholder="Your name (optional)">
+            <input class="cart-input" id="specialInstructions" placeholder="Special instructions (e.g., no onions)">
+            <button class="btn-order" id="placeOrderBtn">Place Order →</button>
+            <button class="btn-close-cart" id="closeCartBtn">Close</button>
         </div>
     </div>
 
-    <div class="container">
-        <div class="header-row">
-            <div class="logo">☕ Digity <span style="font-size:0.7rem;color:var(--muted);font-family:'Plus Jakarta Sans',sans-serif;">Dashboard</span></div>
-            <div class="header-actions">
-                <button id="settingsIcon" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">⚙️</button>
-                <button id="themeToggle">🌙</button>
-                <button id="unmuteBtn">🔊</button>
-                <button id="testAlertBtn">📢</button>
-                <button id="sendReportBtn" class="btn-sm">📤 Report</button>
-                <button id="livePreviewBtn">👁️</button>
-                <button id="logoutBtn" style="color:#e74c3c;">↪</button>
-            </div>
-        </div>
-
-        <div class="stats">
-            <div class="stat-box"><div class="stat-num" id="statViews">0</div><small class="muted">Menu Views</small></div>
-            <div class="stat-box"><div class="stat-num" id="statItems">0</div><small class="muted">Active Items</small></div>
-            <div class="stat-box"><div class="stat-num" id="statOrders">0</div><small class="muted">Total Orders</small></div>
-        </div>
-
-        <!-- Orders Card -->
-        <div class="card">
-            <div class="card-title" onclick="this.parentElement.classList.toggle('collapsed')">📋 Orders <span>▼</span></div>
-            <div class="card-body">
-                <div style="display:flex; gap:0.5rem; margin-bottom:1rem;">
-                    <input id="orderSearch" placeholder="Search...">
-                    <button id="exportCsvBtn" class="btn">📥 CSV</button>
-                </div>
-                <div class="tabs">
-                    <div class="tab active" data-tab="new">New</div>
-                    <div class="tab" data-tab="accepted">Preparing</div>
-                    <div class="tab" data-tab="completed">Completed</div>
-                </div>
-                <div id="ordersList"></div>
-            </div>
-        </div>
-
-        <!-- QR Code Generator Card -->
-        <div class="card collapsed">
-            <div class="card-title" onclick="this.parentElement.classList.toggle('collapsed')">📱 QR Code & Links <span>▼</span></div>
-            <div class="card-body" style="text-align: center;">
-                <button id="generateQrBtn" class="btn-primary">Generate My Cafe QR Code</button>
-                <div id="qrDisplay" class="qr-box" style="display:flex; justify-content:center;"></div>
-                <p id="qrUrl" style="word-break:break-all; font-size:0.85rem; margin: 1rem 0; color:var(--amber);"></p>
-                <button id="copyQrLink" style="display:none; margin: 0 auto;" class="btn">📋 Copy Menu Link</button>
-                <hr style="border-color:var(--border); margin: 1.5rem 0;">
-                <h4>🪑 Table-Specific QR Codes</h4>
-                <p style="font-size:0.85rem; color:var(--muted); margin-bottom:1rem;">Generate QR codes for individual tables. Orders will automatically include the table number.</p>
-                <div style="display:flex; gap:0.8rem; margin-bottom:1rem; align-items:center;">
-                    <input type="number" id="customTableNumber" placeholder="Table number" style="flex:1; margin-bottom:0;" min="1">
-                    <button id="generateTableQrBtn" class="btn-primary" style="flex:1;">Generate Table QR</button>
-                </div>
-                <div id="tableQrDisplay" class="qr-box" style="display:flex; justify-content:center; margin-top:1rem;"></div>
-                <p id="tableQrUrl" style="word-break:break-all; font-size:0.85rem; margin: 0.5rem 0; color:var(--amber);"></p>
-                <button id="copyTableQrLink" style="display:none; margin: 0 auto;" class="btn">📋 Copy Table Link</button>
-                <button id="downloadAllTableQrsBtn" class="btn" style="margin-top:1rem;">📥 Download All Table QR Codes (PDF)</button>
-            </div>
-        </div>
-
-        <!-- AI Scanner -->
-        <div class="card collapsed">
-            <div class="card-title" onclick="this.parentElement.classList.toggle('collapsed')">🤖 AI Menu Scanner <span style="font-size:0.7rem;background:var(--amber);color:#fff;padding:2px 8px;border-radius:10px;">BETA</span></div>
-            <div class="card-body">
-                <p style="font-size:0.85rem;color:var(--muted);margin-bottom:1rem;">Upload multiple photos – AI extracts items with prices & variants.</p>
-                <div style="display:flex; gap:0.8rem; margin-bottom:1rem;">
-                    <button id="takePhotoBtn" class="btn-primary">📸 Camera</button>
-                    <button id="galleryUploadBtn" class="btn">🖼️ Gallery</button>
-                </div>
-                <input type="file" id="aiMenuImageFile" accept="image/*" capture="environment" multiple style="display:none;">
-                <div id="aiPreviews" style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:1rem;"></div>
-                <button id="scanMenuBtn" class="btn-primary" style="display:none;">🔍 Scan All</button>
-                <div id="aiScannerStatus" style="margin-top:1rem; font-weight:600;"></div>
-            </div>
-        </div>
-
-        <!-- Add/Edit Item -->
-        <div class="card" id="addItemCard">
-            <div class="card-title" onclick="this.parentElement.classList.toggle('collapsed')">➕ Add Item <span>▼</span></div>
-            <div class="card-body">
-                <input type="hidden" id="editItemId">
-                <div style="display:flex; gap:0.8rem;">
-                    <input id="itemName" placeholder="Item name *">
-                    <input id="itemPrice" type="number" placeholder="Price ₹" style="width:120px;">
-                </div>
-                <select id="itemCategorySelect"><option>Uncategorized</option></select>
-                <input id="itemCategoryInput" placeholder="New category name" style="display:none;">
-                <input id="itemDiscount" placeholder="Discount (e.g. 10% off)">
-                <textarea id="itemDesc" rows="2" placeholder="Short description"></textarea>
-                <div style="display:flex; gap:0.8rem; flex-wrap:wrap; margin-bottom:0.5rem;">
-                    <label><input type="checkbox" id="tagFeatured"> 🔥 Chef's Special</label>
-                    <label><input type="checkbox" id="tagStandard"> ✅ Standard</label>
-                    <label><input type="checkbox" id="tagBest"> 🏆 Best of Cafe</label>
-                    <label><input type="checkbox" id="tagSelling"> 📈 Best Seller</label>
-                </div>
-                <div style="display:flex; gap:0.8rem; flex-wrap:wrap; margin-bottom:0.8rem;">
-                    <label><input type="checkbox" class="allergenCheck" value="gluten"> 🌾 Gluten</label>
-                    <label><input type="checkbox" class="allergenCheck" value="dairy"> 🥛 Dairy</label>
-                    <label><input type="checkbox" class="allergenCheck" value="nuts"> 🥜 Nuts</label>
-                    <label><input type="checkbox" class="dietaryCheck" value="vegan"> 🌱 Vegan</label>
-                    <label><input type="checkbox" class="dietaryCheck" value="jain"> 🕉️ Jain</label>
-                </div>
-                <div style="display:flex; align-items:center; gap:1rem; margin-bottom:1rem;">
-                    <label for="itemImageFile" class="btn">📷 Choose Photo</label>
-                    <input type="file" id="itemImageFile" accept="image/*" style="display:none;">
-                    <button id="autoImageBtn" class="btn">🖼️ Auto Image</button>
-                    <img id="itemImagePreview" style="max-width:80px; max-height:80px; border-radius:8px; display:none;">
-                </div>
-                <div style="margin-bottom:1rem;">
-                    <small>Sizes / Variants</small>
-                    <div id="variantsContainer"></div>
-                    <button id="addVariantBtn" class="btn" style="margin-top:0.3rem;">+ Add Size</button>
-                </div>
-                <div style="display:flex; gap:0.8rem;">
-                    <button id="submitItemBtn" class="btn-primary" style="flex:1;">Save Item</button>
-                    <button id="saveAndNextBtn" class="btn" style="flex:1;">Save & Next</button>
-                    <button id="cancelEditBtn" class="btn" style="display:none;">Cancel</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Menu Items List -->
-        <div class="card">
-            <div class="card-title" onclick="this.parentElement.classList.toggle('collapsed')">📋 Live Menu <span>▼</span></div>
-            <div class="card-body">
-                <input id="menuSearch" placeholder="Search items..." style="margin-bottom:1rem;">
-                <div id="menuItemsList"></div>
-            </div>
-        </div>
-
-        <!-- News / Micro-blog -->
-        <div class="card collapsed">
-            <div class="card-title" onclick="this.parentElement.classList.toggle('collapsed')">📰 Cafe News <span>▼</span></div>
-            <div class="card-body">
-                <div style="display:flex; flex-direction:column; gap:0.5rem; margin-bottom:1rem;">
-                    <input id="newsTitle" placeholder="Title">
-                    <textarea id="newsBody" placeholder="Write something..." rows="2"></textarea>
-                    <button id="addNewsBtn" class="btn-primary">Post</button>
-                </div>
-                <div id="newsList"></div>
-            </div>
-        </div>
+    <div class="success-overlay" id="successOverlay">
+        <div class="success-icon">✅</div>
+        <div class="success-title">Order Placed!</div>
+        <p class="success-sub" id="successMsg">We're preparing your order…</p>
     </div>
+
+    <!-- Fixed news ticker -->
+    <div id="newsTicker" class="news-ticker" style="display:none;">
+        <i>📰</i>
+        <span id="newsTickerText"></span>
+    </div>
+
+    <!-- Loyalty badge -->
+    <div id="loyaltyBadge" class="loyalty-badge" style="display:none;" title="Loyalty Rewards">
+        🎁<span id="loyaltyCount">0</span>
+    </div>
+
+    <!-- WhatsApp button -->
+    <a id="whatsappBtn" class="whatsapp-btn" style="display:none;" href="#" target="_blank">💬</a>
 
     <script>
         const SUPABASE_URL = 'https://dsbqhorzcbcrjivrgauk.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRzYnFob3J6Y2JjcmppdnJnYXVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMTQxMjAsImV4cCI6MjA5NjU5MDEyMH0.mSv--VVeaKzYSUGenYT5uYuIv85A4C0A0eyqT-DWv2o';
         const BASE_URL = 'https://zakiewillplay.github.io/Digity/menu.html?id=';
         const GEMINI_URL = 'https://dsbqhorzcbcrjivrgauk.supabase.co/functions/v1/gemini';
-        const AUTO_IMG_URL = 'https://dsbqhorzcbcrjivrgauk.supabase.co/functions/v1/auto-image';
-        const IMG_UPLOAD_URL = 'https://dsbqhorzcbcrjivrgauk.supabase.co/functions/v1/image-upload';
-        const GET_CHAT_ID_URL = 'https://dsbqhorzcbcrjivrgauk.supabase.co/functions/v1/get-chat-id';
         const TELEGRAM_NOTIFY_URL = 'https://dsbqhorzcbcrjivrgauk.supabase.co/functions/v1/Telegram-notify';
         const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const urlParams = new URLSearchParams(window.location.search);
+        const cafeId = urlParams.get('id');
+        const tableParam = urlParams.get('table');
 
-        function toast(msg, isError = false) {
-            const el = document.createElement('div');
-            el.className = 'toast' + (isError ? ' error' : '');
-            el.textContent = msg;
+        let lang = 'en';
+        const T = {
+            en: { search:'Search dishes, drinks…', table:'Table Number *', name:'Your name (optional)', place:'Place Order →', orderPlaced:'Order Placed!', waiting:'We\'re preparing your order…', noItems:'Nothing found.', waiterCall:'Waiter is on their way! 👋', cartEmpty:'Your cart is empty', tableReq:'Please enter your table number' }
+        };
+        const tl = k => T[lang]?.[k] || k;
+
+        let menuItems = [], cart = [], activeCategory = 'All', cafeData;
+        let dietaryFilter = 'all';
+        try { cart = JSON.parse(localStorage.getItem('cafe_cart') || '[]'); } catch(e) { cart = []; }
+
+        function showToast(msg) {
+            const el = Object.assign(document.createElement('div'), { className:'toast', textContent:msg });
             document.getElementById('toastContainer').appendChild(el);
-            setTimeout(() => el.remove(), 6000);
+            setTimeout(() => el.remove(), 3000);
         }
 
-        function applyTheme() {
-            const saved = localStorage.getItem('digity_theme');
-            if(saved === 'dark' || (!saved && matchMedia('(prefers-color-scheme:dark)').matches)) {
-                document.body.classList.remove('light-mode');
-                document.getElementById('themeToggle').textContent = '☀️';
-            } else {
-                document.body.classList.add('light-mode');
-                document.getElementById('themeToggle').textContent = '🌙';
-            }
-        }
         document.getElementById('themeToggle').addEventListener('click', () => {
             document.body.classList.toggle('light-mode');
-            localStorage.setItem('digity_theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
-            applyTheme();
+            document.getElementById('themeToggle').textContent = document.body.classList.contains('light-mode') ? '🌙 Dark' : '☀️ Light';
         });
-        applyTheme();
-
-        let audioCtx;
-        let audioReady = localStorage.getItem('digity_unmuted') === 'true';
-        const unmuteBtn = document.getElementById('unmuteBtn');
-        if(audioReady) unmuteBtn.style.display = 'none';
-        unmuteBtn.addEventListener('click', () => {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            if(audioCtx.state === 'suspended') audioCtx.resume();
-            audioReady = true;
-            localStorage.setItem('digity_unmuted', 'true');
-            unmuteBtn.style.display = 'none';
-            toast('Sound enabled');
-        });
-        function beep() {
-            if(!audioReady) return;
-            if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
-            osc.connect(gain); gain.connect(audioCtx.destination);
-            osc.frequency.value = 1000;
-            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
-            osc.start(); osc.stop(audioCtx.currentTime + 0.15);
-        }
-
-        document.getElementById('testAlertBtn').addEventListener('click', () => { beep(); toast('Beep!'); });
-        document.getElementById('logoutBtn').addEventListener('click', () => _sb.auth.signOut().then(() => location.href='index.html'));
-        document.getElementById('livePreviewBtn').addEventListener('click', () => {
-            if(cafeData?.id) window.open(BASE_URL + cafeData.id, '_blank');
-            else toast('Cafe not ready');
+        document.getElementById('shareBtn').addEventListener('click', async () => {
+            const url = location.href;
+            if (navigator.share) { try { await navigator.share({ title:document.title, url }); return; } catch(e) {} }
+            try { await navigator.clipboard.writeText(url); showToast('Link copied!'); } catch(e) { showToast('Copy: ' + url); }
         });
 
-        let cafeData, allOrders=[], allItems=[], activeOrderTab='new', realtimeChannel;
-        let selectedFiles = [];
-        let subSettings = null;
-
-        // ---- Settings modal toggle ----
-        document.getElementById('settingsIcon').addEventListener('click', () => {
-            document.getElementById('settingsModal').classList.add('open');
-        });
-        document.getElementById('closeSettingsModal').addEventListener('click', () => {
-            document.getElementById('settingsModal').classList.remove('open');
-        });
-
-        // ---- Auto-save (debounced) ----
-        let saveTimeout;
-        function autoSave() {
-            clearTimeout(saveTimeout);
-            saveTimeout = setTimeout(async () => {
-                if (!cafeData) return;
-                const u = {
-                    cafe_name: document.getElementById('setCafeName').value.trim(),
-                    whatsapp: document.getElementById('setWhatsapp').value.trim(),
-                    description: document.getElementById('setDesc').value.trim(),
-                    primary_color: document.getElementById('setPrimary').value,
-                    accent_color: document.getElementById('setAccent').value,
-                    google_place_id: document.getElementById('setGooglePlaceId').value.trim(),
-                    telegram_chat_id: document.getElementById('setTelegramChatId').value.trim(),
-                    instagram_url: document.getElementById('setInstagram').value.trim(),
-                    facebook_url: document.getElementById('setFacebook').value.trim(),
-                    google_review_url: document.getElementById('setGoogleReview').value.trim()
-                };
-                const { error } = await _sb.from('cafes').update(u).eq('id', cafeData.id);
-                if (!error) {
-                    Object.assign(cafeData, u);
-                    toast('Settings saved');
-                }
-            }, 2000);
-        }
-
-        // Attach auto-save to all settings inputs
-        document.querySelectorAll('#setCafeName, #setWhatsapp, #setDesc, #setPrimary, #setAccent, #setGooglePlaceId, #setTelegramChatId, #setInstagram, #setFacebook, #setGoogleReview')
-            .forEach(input => input.addEventListener('input', autoSave));
-
-        // Manual save button triggers immediate save
-        document.getElementById('saveSettingsBtn').addEventListener('click', () => {
-            clearTimeout(saveTimeout);
-            autoSave();
-        });
-
-        // ---- Open Bot button ----
-        document.getElementById('openBotBtn').addEventListener('click', () => {
-            window.open('https://t.me/DigityAlertbot', '_blank');
-        });
-
-        // ---- Fetch subscription settings and check trial ----
-        async function checkSubscription() {
-            const { data: sub } = await _sb.from('subscription_settings').select('*').single();
-            subSettings = sub;
-            if (cafeData && (cafeData.subscription_status !== 'active' && cafeData.subscription_status !== 'trial') ||
-                (cafeData.subscription_status === 'trial' && new Date(cafeData.trial_ends_at) < new Date())) {
-                showPaywall();
-                return false;
-            }
-            return true;
-        }
-
-        function showPaywall() {
-            document.getElementById('paywallOverlay').style.display = 'flex';
-            document.getElementById('paywallUpiId').textContent = 'UPI ID: ' + (subSettings?.upi_id || '');
-            document.getElementById('paywallPrice').textContent = '₹' + (subSettings?.price || '299');
-            if (subSettings?.qr_code_url) {
-                document.getElementById('paywallQr').src = subSettings.qr_code_url;
-                document.getElementById('paywallQr').style.display = 'block';
-            }
-        }
-
-        document.getElementById('submitUpiBtn').addEventListener('click', async () => {
-            const tid = document.getElementById('upiTransactionId').value.trim();
-            if (!tid) return toast('Enter transaction ID', true);
-            await _sb.from('cafes').update({
-                subscription_status: 'pending',
-                upi_transaction_id: tid
-            }).eq('id', cafeData.id);
-            toast('Payment submitted for approval');
-            document.getElementById('paywallOverlay').style.display = 'none';
-        });
-
-        // ---- Daily Report button ----
-        document.getElementById('sendReportBtn').addEventListener('click', async () => {
-            if (!cafeData?.telegram_chat_id) return toast('Set Telegram Chat ID first', true);
-            const since = new Date(Date.now() - 24*60*60*1000).toISOString();
-            const { data: orders } = await _sb.from('orders').select('*')
-                .eq('cafe_id', cafeData.id)
-                .gte('created_at', since)
-                .order('created_at', { ascending: false });
-
-            const totalOrders = orders.length;
-            const totalRevenue = orders.reduce((sum, o) => sum + (o.total || 0), 0);
-            let message = `📊 *Daily Report*\nCafe: ${cafeData.cafe_name}\nOrders: ${totalOrders}\nRevenue: ₹${totalRevenue}\n`;
-            if (orders.length > 0) {
-                message += `Last order: Table ${orders[0].table_number}, ₹${orders[0].total}`;
-            }
-            fetch(TELEGRAM_NOTIFY_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
-                body: JSON.stringify({
-                    chat_id: cafeData.telegram_chat_id,
-                    cafe_name: cafeData.cafe_name,
-                    table: 'Report',
-                    customer: 'System',
-                    items: [{ name: 'Daily Summary', qty: 1 }],
-                    total: totalRevenue,
-                    message: message
-                })
-            }).then(r => r.json()).then(d => {
-                if (d.ok) toast('Report sent!');
-                else toast('Failed to send report', true);
+        // Dietary filter buttons
+        document.querySelectorAll('.dietary-chip').forEach(chip => {
+            chip.addEventListener('click', function() {
+                document.querySelectorAll('.dietary-chip').forEach(c => c.classList.remove('active'));
+                this.classList.add('active');
+                dietaryFilter = this.dataset.filter;
+                renderMenu();
             });
         });
 
-        // ---- Image compression ----
-        function compressImage(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const img = new Image();
-                    img.onload = () => {
-                        const canvas = document.createElement('canvas');
-                        const maxWidth = 800;
-                        let width = img.width;
-                        let height = img.height;
-                        if (width > maxWidth) {
-                            height = (height * maxWidth) / width;
-                            width = maxWidth;
-                        }
-                        canvas.width = width;
-                        canvas.height = height;
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(img, 0, 0, width, height);
-                        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7).split(',')[1];
-                        resolve(compressedBase64);
-                    };
-                    img.onerror = reject;
-                    img.src = e.target.result;
-                };
-                reader.onerror = reject;
-                reader.readAsDataURL(file);
-            });
-        }
-
-        // ---- Initialization ----
-        async function init() {
-            try {
-                const { data: { user } } = await _sb.auth.getUser();
-                if (!user) { toast('Not logged in'); setTimeout(() => location.href='auth.html', 2000); return; }
-
-                let { data: cafe, error } = await _sb.from('cafes').select('*').eq('owner_id', user.id).maybeSingle();
-                if (error) throw error;
-                if (!cafe) {
-                    const { data: newCafe, error: createError } = await _sb.from('cafes').insert({
-                        owner_id: user.id, cafe_name: 'My Cafe',
-                        trial_ends_at: new Date(Date.now() + 30*24*60*60*1000).toISOString()
-                    }).select().maybeSingle();
-                    if (createError) throw createError;
-                    cafe = newCafe;
-                }
-                cafeData = cafe;
-
-                // Fill settings fields
-                document.getElementById('setCafeName').value = cafeData.cafe_name || '';
-                document.getElementById('setWhatsapp').value = cafeData.whatsapp || '';
-                document.getElementById('setDesc').value = cafeData.description || '';
-                document.getElementById('setPrimary').value = cafeData.primary_color || '#e8921a';
-                document.getElementById('setAccent').value = cafeData.accent_color || '#2F3E46';
-                document.getElementById('setGooglePlaceId').value = cafeData.google_place_id || '';
-                document.getElementById('setTelegramChatId').value = cafeData.telegram_chat_id || '';
-                document.getElementById('cafeIdDisplay').value = cafeData.id;
-                document.getElementById('setInstagram').value = cafeData.instagram_url || '';
-                document.getElementById('setFacebook').value = cafeData.facebook_url || '';
-                document.getElementById('setGoogleReview').value = cafeData.google_review_url || '';
-                if(cafeData.logo_url) {
-                    document.getElementById('logoPreview').src = cafeData.logo_url;
-                    document.getElementById('logoPreview').style.display = 'block';
-                }
-
-                document.getElementById('copyCafeIdBtn').addEventListener('click', () => {
-                    navigator.clipboard.writeText(cafeData.id); toast('Cafe ID copied!');
-                });
-
-                // Get from Bot button
-                document.getElementById('getFromBotBtn').addEventListener('click', async () => {
-                    toast('Fetching chat ID…');
-                    try {
-                        const res = await fetch(GET_CHAT_ID_URL, {
-                            headers: { 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
-                        });
-                        const data = await res.json();
-                        if (data.chatId) {
-                            document.getElementById('setTelegramChatId').value = data.chatId;
-                            toast('Chat ID filled!');
-                        } else {
-                            toast('No messages yet. Send a message to your bot first.', true);
-                        }
-                    } catch (err) {
-                        toast('Error fetching chat ID.', true);
-                    }
-                });
-
-                // Test Telegram button
-                document.getElementById('testTelegramBtn').addEventListener('click', () => {
-                    const chatId = document.getElementById('setTelegramChatId').value.trim();
-                    if (!chatId) return toast('Enter a chat ID first', true);
-                    fetch(TELEGRAM_NOTIFY_URL, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
-                        body: JSON.stringify({
-                            chat_id: chatId,
-                            cafe_name: 'Test',
-                            table: '0',
-                            customer: 'Test',
-                            items: [{ name: 'Test item', qty: 1 }],
-                            total: 0
-                        })
-                    }).then(r => r.json()).then(d => {
-                        if (d.ok) toast('Test message sent!');
-                        else toast('Failed to send test.', true);
-                    }).catch(() => toast('Error sending test.', true));
-                });
-
-                // Check subscription
-                const canAccess = await checkSubscription();
-                // If paywall shown, rest of the dashboard is hidden behind the overlay
-
-                await Promise.all([loadStats(), loadOrders(), loadItems(), loadNews()]);
-                setupRealtime();
-                createDefaultVariantRow();
-
-                toast('Dashboard ready');
-            } catch (err) {
-                toast('Fatal error: ' + err.message, true);
+        async function loadMenu() {
+            if (!cafeId) return document.getElementById('cafeNameDisplay').textContent = 'Invalid Menu Link';
+            const { data: cafe } = await _sb.from('cafes').select('*').eq('id', cafeId).maybeSingle();
+            cafeData = cafe;
+            document.getElementById('cafeNameDisplay').textContent = cafe?.cafe_name || 'Cafe';
+            document.getElementById('cafeDesc').textContent = cafe?.description || '';
+            if (cafe?.busy_mode) {
+                document.getElementById('busyBanner').style.display = 'block';
+                document.getElementById('waitTimeDisplay').textContent = cafe.wait_time || 10;
             }
-        }
 
-        // ---- Logo upload ----
-        document.getElementById('uploadLogoBtn').addEventListener('click', () => {
-            const input = document.createElement('input'); input.type='file'; input.accept='image/*';
-            input.onchange = async (e) => {
-                const file = e.target.files[0];
-                if(!file) return;
-                const form = new FormData(); form.append('image', file);
-                const res = await fetch(IMG_UPLOAD_URL, { method:'POST', headers:{'Authorization':`Bearer ${SUPABASE_ANON_KEY}`}, body:form });
-                const data = await res.json();
-                if(data.url) {
-                    document.getElementById('logoPreview').src = data.url;
-                    document.getElementById('logoPreview').style.display = 'block';
-                    cafeData.logo_url = data.url;
-                    await _sb.from('cafes').update({logo_url: data.url}).eq('id', cafeData.id);
-                    toast('Logo uploaded!');
-                } else toast('Upload failed');
-            };
-            input.click();
-        });
-
-        // ---- QR Code ----
-        document.getElementById('generateQrBtn').addEventListener('click', () => {
-            if (!cafeData?.id) return;
-            const url = BASE_URL + cafeData.id;
-            document.getElementById('qrDisplay').innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(url)}" width="250" height="250">`;
-            document.getElementById('qrUrl').textContent = url;
-            document.getElementById('copyQrLink').style.display = 'inline-block';
-        });
-        document.getElementById('copyQrLink').addEventListener('click', () => {
-            navigator.clipboard.writeText(document.getElementById('qrUrl').textContent); toast('Link copied!');
-        });
-        document.getElementById('generateTableQrBtn').addEventListener('click', () => {
-            const table = document.getElementById('customTableNumber').value.trim();
-            if (!table || isNaN(table) || parseInt(table) < 1) return toast('Enter a valid table number', true);
-            if (!cafeData?.id) return toast('Cafe not ready', true);
-            const url = BASE_URL + cafeData.id + '&table=' + table;
-            document.getElementById('tableQrDisplay').innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(url)}" width="250" height="250">`;
-            document.getElementById('tableQrUrl').textContent = url;
-            document.getElementById('copyTableQrLink').style.display = 'inline-block';
-        });
-        document.getElementById('copyTableQrLink').addEventListener('click', () => {
-            navigator.clipboard.writeText(document.getElementById('tableQrUrl').textContent); toast('Table link copied!');
-        });
-        document.getElementById('downloadAllTableQrsBtn').addEventListener('click', async () => {
-            if (!cafeData?.id) return;
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-            for (let i = 1; i <= 20; i++) {
-                const url = BASE_URL + cafeData.id + '&table=' + i;
-                const img = document.createElement('img');
-                img.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
-                await new Promise(resolve => { img.onload = resolve; });
-                const canvas = document.createElement('canvas'); canvas.width = img.width; canvas.height = img.height;
-                canvas.getContext('2d').drawImage(img, 0, 0);
-                const dataUrl = canvas.toDataURL('image/png');
-                if (i > 1) doc.addPage();
-                doc.setFontSize(16); doc.text(`Table ${i}`, 105, 20, { align: 'center' });
-                doc.addImage(dataUrl, 'PNG', 55, 30, 100, 100);
+            // Maintenance check
+            if (cafe && (cafe.subscription_status !== 'active' && 
+                (cafe.subscription_status !== 'trial' || new Date(cafe.trial_ends_at) < new Date()))) {
+                document.getElementById('maintenanceMsg').style.display = 'block';
+                document.getElementById('normalMenu').style.display = 'none';
+                return;
             }
-            doc.save(`table_qr_codes_${cafeData.id.slice(0,8)}.pdf`);
-            toast('PDF downloaded!');
-        });
+            document.getElementById('normalMenu').style.display = 'block';
 
-        // ---- Orders ----
-        async function loadOrders() {
-            if (!cafeData) return;
-            const { data } = await _sb.from('orders').select('*').eq('cafe_id', cafeData.id).order('created_at', { ascending: false });
-            allOrders = data || [];
-            renderOrders();
+            // Logo
+            const logoContainer = document.getElementById('cafeLogoContainer');
+            const logoImg = document.getElementById('cafeLogoImg');
+            if (cafe?.logo_url) { logoImg.src = cafe.logo_url; logoContainer.style.display = 'block'; }
+            else logoContainer.style.display = 'none';
+
+            // WhatsApp button
+            if (cafe?.whatsapp) {
+                const waBtn = document.getElementById('whatsappBtn');
+                waBtn.style.display = 'flex';
+                waBtn.href = `https://wa.me/${cafe.whatsapp.replace(/\D/g,'')}`;
+            }
+
+            // Estimated wait time
+            if (cafe?.avg_prep_time) {
+                const { count: pendingCount } = await _sb.from('orders').select('*', { count:'exact', head:true }).eq('cafe_id', cafeId).in('status', ['new','accepted']);
+                const waitMinutes = (pendingCount || 0) * (cafe.avg_prep_time || 5);
+                if (waitMinutes > 0) {
+                    document.getElementById('waitBanner').style.display = 'block';
+                    document.getElementById('waitTime').textContent = waitMinutes;
+                }
+            }
+
+            // Loyalty badge
+            if (cafe?.loyalty_enabled) {
+                const deviceId = localStorage.getItem('digity_device_id') || Date.now().toString();
+                localStorage.setItem('digity_device_id', deviceId);
+                const { data: loyalty } = await _sb.from('loyalty').select('*').eq('cafe_id', cafeId).eq('customer_identifier', deviceId).maybeSingle();
+                if (loyalty) {
+                    document.getElementById('loyaltyBadge').style.display = 'flex';
+                    document.getElementById('loyaltyCount').textContent = loyalty.orders_count;
+                }
+            }
+
+            // Spotlight
+            loadSpotlight();
+
+            const { data: items } = await _sb.from('menu_items').select('*').eq('cafe_id', cafeId).eq('available', true).order('category');
+            menuItems = items?.length ? items : [];
+            if (tableParam) { const t = document.getElementById('tableNumber'); t.value = tableParam; t.readOnly = true; t.style.opacity = '0.6'; }
+            renderMenu(true);
+            updateCartUI();
+            loadNews();
+            loadReviews();
+            setTimeout(subscribeToPush, 3000);
         }
-        function renderOrders() {
-            const search = document.getElementById('orderSearch').value.toLowerCase();
-            const filtered = allOrders.filter(o => {
-                const statusMatch = (activeOrderTab === 'new' && o.status === 'new') ||
-                                  (activeOrderTab === 'accepted' && o.status === 'accepted') ||
-                                  (activeOrderTab === 'completed' && (o.status === 'delivered' || o.status === 'completed'));
-                const searchMatch = !search || (o.table_number || '').toString().includes(search) || (o.customer_name || '').toLowerCase().includes(search);
-                return statusMatch && searchMatch;
-            });
-            const list = document.getElementById('ordersList');
-            list.innerHTML = filtered.length ? filtered.map(o => {
-                const items = typeof o.items === 'string' ? JSON.parse(o.items) : (o.items || []);
-                return `<div class="card" style="padding:0.8rem; margin-bottom:0.5rem;">
-                    <div style="display:flex; justify-content:space-between;">
-                        <strong>Table ${o.table_number || '?'}</strong>
-                        <small>${o.customer_name || 'Guest'} | ${new Date(o.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small>
+
+        async function loadSpotlight() {
+            const { data: featured } = await _sb.from('featured_cafes').select('cafe1_id, cafe2_id').single();
+            if (!featured || (!featured.cafe1_id && !featured.cafe2_id)) return;
+            const ids = [featured.cafe1_id, featured.cafe2_id].filter(Boolean);
+            const { data: cafes } = await _sb.from('cafes').select('id, cafe_name').in('id', ids);
+            if (!cafes || cafes.length === 0) return;
+            const spotlightHtml = cafes.map(c => `
+                <div class="spotlight-card">
+                    <span>✨</span>
+                    <div>
+                        <a href="${BASE_URL}${c.id}" target="_blank">${c.cafe_name}</a>
+                        <div style="font-size:0.8rem; color:var(--muted);">Discover more</div>
                     </div>
-                    <div style="font-size:0.8rem; margin:0.3rem 0;">${items.map(i => i.name + ' x' + (i.qty || 1)).join(', ')}</div>
-                    <div style="display:flex; justify-content:space-between;">
-                        <strong>₹${o.total}</strong>
-                        <div>${o.status === 'new' ? `<button class="btn btn-primary" onclick="updateOrder('${o.id}','accepted')">Accept</button>` : ''}${o.status === 'accepted' ? `<button class="btn btn-primary" onclick="updateOrder('${o.id}','delivered')">Deliver</button>` : ''}</div>
+                </div>
+            `).join('');
+            document.getElementById('spotlightContainer').innerHTML = spotlightHtml;
+        }
+
+        async function loadReviews() {
+            const { data: reviews } = await _sb.from('reviews').select('*').eq('cafe_id', cafeId).order('created_at', { ascending: false }).limit(5);
+            if (reviews && reviews.length > 0) {
+                document.getElementById('reviewsSection').style.display = 'block';
+                document.getElementById('reviewsList').innerHTML = reviews.map(r => `
+                    <div class="review-item">
+                        <div class="stars">${'⭐'.repeat(r.rating)}</div>
+                        <p>${r.comment || ''}</p>
+                        <small>— ${r.customer_name || 'Anonymous'}</small>
                     </div>
-                </div>`;
-            }).join('') : '<p style="color:var(--muted);">No orders</p>';
-        }
-        window.updateOrder = async (id, status) => { await _sb.from('orders').update({ status }).eq('id', id); loadOrders(); };
-        document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', function() {
-            document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
-            this.classList.add('active'); activeOrderTab = this.dataset.tab; renderOrders();
-        }));
-        document.getElementById('orderSearch').addEventListener('input', renderOrders);
-        document.getElementById('exportCsvBtn').addEventListener('click', () => {
-            const csv = 'Date,Table,Customer,Items,Total,Status\n' + allOrders.map(o => `${o.created_at},${o.table_number},${o.customer_name},${(typeof o.items === 'string' ? JSON.parse(o.items) : o.items).map(i => i.name).join(';')},${o.total},${o.status}`).join('\n');
-            const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv])); a.download = 'orders.csv'; a.click();
-            toast('CSV exported');
-        });
-        function setupRealtime() {
-            if (realtimeChannel) _sb.removeChannel(realtimeChannel);
-            realtimeChannel = _sb.channel('orders-realtime')
-                .on('postgres_changes', { event:'INSERT', schema:'public', table:'orders', filter:`cafe_id=eq.${cafeData.id}` }, payload => {
-                    allOrders.unshift(payload.new); renderOrders(); beep(); loadStats();
-                }).subscribe();
-        }
-
-        async function loadStats() {
-            if (!cafeData) return;
-            const [{ count: i }, { count: o }, { count: v }] = await Promise.all([
-                _sb.from('menu_items').select('*', { count: 'exact', head: true }).eq('cafe_id', cafeData.id),
-                _sb.from('orders').select('*', { count: 'exact', head: true }).eq('cafe_id', cafeData.id),
-                _sb.from('menu_views_log').select('*', { count: 'exact', head: true }).eq('cafe_id', cafeData.id)
-            ]);
-            document.getElementById('statItems').textContent = i || 0;
-            document.getElementById('statOrders').textContent = o || 0;
-            document.getElementById('statViews').textContent = v || 0;
-        }
-
-        // ---- Items ----
-        async function loadItems() {
-            if (!cafeData) return;
-            const { data } = await _sb.from('menu_items').select('*').eq('cafe_id', cafeData.id).order('category');
-            allItems = data || [];
-            renderItems();
-            const cats = [...new Set(allItems.map(i => i.category).filter(Boolean))].sort();
-            const sel = document.getElementById('itemCategorySelect');
-            sel.innerHTML = '<option value="Uncategorized">Uncategorized</option>' + cats.map(c => `<option value="${c}">${c}</option>`).join('') + '<option value="__new__">+ New</option>';
-        }
-        function renderItems() {
-            const search = document.getElementById('menuSearch').value.toLowerCase();
-            const filtered = allItems.filter(i => !search || i.name.toLowerCase().includes(search) || i.category.toLowerCase().includes(search));
-            document.getElementById('menuItemsList').innerHTML = filtered.map(item => `
-                <div style="display:flex; align-items:center; gap:0.8rem; padding:0.6rem; border-bottom:1px solid var(--glass-border);">
-                    ${item.image_url ? `<img src="${item.image_url}" style="width:45px;height:45px;border-radius:8px;object-fit:cover;">` : ''}
-                    <div style="flex:1;"><strong>${item.name}</strong><br><small>${item.category} | ₹${item.price}</small></div>
-                    <label class="switch"><input type="checkbox" ${item.available ? 'checked' : ''} onchange="toggleItem('${item.id}',this.checked)"><span class="slider"></span></label>
-                    <button class="btn" onclick="editItem('${item.id}')">✏️</button>
-                    <button class="btn" onclick="deleteItem('${item.id}')">🗑️</button>
-                </div>`).join('');
-        }
-        window.toggleItem = async (id, checked) => { await _sb.from('menu_items').update({ available: checked }).eq('id', id); };
-        window.deleteItem = async (id) => { if (confirm('Delete?')) { await _sb.from('menu_items').delete().eq('id', id); loadItems(); loadStats(); } };
-
-        function createVariantRow(name = '', price = '') {
-            const row = document.createElement('div');
-            row.style.display = 'flex'; row.style.gap = '0.5rem'; row.style.marginBottom = '0.4rem';
-            row.innerHTML = `<input class="var-name" placeholder="Size" value="${name}" style="flex:1;"><input class="var-price" type="number" placeholder="Price" value="${price}" style="flex:1;"><button type="button" class="btn remove-var" style="padding:0.3rem 0.6rem;">✕</button>`;
-            row.querySelector('.remove-var').addEventListener('click', () => row.remove());
-            return row;
-        }
-        function createDefaultVariantRow() {
-            if (document.getElementById('variantsContainer').children.length === 0) {
-                document.getElementById('variantsContainer').appendChild(createVariantRow());
+                `).join('');
             }
         }
-        document.getElementById('addVariantBtn').addEventListener('click', () => {
-            document.getElementById('variantsContainer').appendChild(createVariantRow());
-        });
-        document.getElementById('itemCategorySelect').addEventListener('change', function() {
-            const input = document.getElementById('itemCategoryInput');
-            if (this.value === '__new__') { input.style.display = 'block'; input.value = ''; }
-            else { input.style.display = 'none'; }
-        });
 
-        window.editItem = (id) => {
-            const item = allItems.find(i => i.id === id);
-            if (!item) return;
-            document.getElementById('editItemId').value = item.id;
-            document.getElementById('itemName').value = item.name;
-            document.getElementById('itemPrice').value = item.price;
-            const catSel = document.getElementById('itemCategorySelect');
-            if ([...catSel.options].some(o => o.value === item.category)) {
-                catSel.value = item.category;
-                document.getElementById('itemCategoryInput').style.display = 'none';
-            } else {
-                catSel.value = '__new__';
-                document.getElementById('itemCategoryInput').style.display = 'block';
-                document.getElementById('itemCategoryInput').value = item.category;
-            }
-            document.getElementById('itemDiscount').value = item.discount || '';
-            document.getElementById('itemDesc').value = item.description || '';
-            document.getElementById('tagFeatured').checked = item.featured || (item.tags || '').split(',').includes('featured');
-            document.getElementById('tagStandard').checked = (item.tags || '').split(',').includes('standard');
-            document.getElementById('tagBest').checked = (item.tags || '').split(',').includes('best');
-            document.getElementById('tagSelling').checked = (item.tags || '').split(',').includes('bestselling');
-            document.querySelectorAll('.allergenCheck').forEach(c => c.checked = (item.allergens || []).includes(c.value));
-            document.querySelectorAll('.dietaryCheck').forEach(c => c.checked = (item.dietary || []).includes(c.value));
-            if (item.image_url) { document.getElementById('itemImagePreview').src = item.image_url; document.getElementById('itemImagePreview').style.display = 'block'; }
-            else document.getElementById('itemImagePreview').style.display = 'none';
-            document.getElementById('itemImageFile').value = ''; document.getElementById('itemImageFile').dataset.autoUrl = '';
-            const varContainer = document.getElementById('variantsContainer');
-            varContainer.innerHTML = '';
-            if (item.description?.startsWith('VAR::')) {
-                const parts = item.description.replace('VAR::', '').split('|');
-                parts.forEach(p => { const [n, pr] = p.split('='); varContainer.appendChild(createVariantRow(n, pr)); });
-            } else varContainer.appendChild(createVariantRow());
-            document.getElementById('addItemCard').classList.remove('collapsed');
-            document.getElementById('addItemCard').scrollIntoView({ behavior: 'smooth' });
-            document.getElementById('submitItemBtn').textContent = 'Update Item';
-            document.getElementById('cancelEditBtn').style.display = 'inline-block';
-        };
-        document.getElementById('cancelEditBtn').addEventListener('click', resetForm);
-        function resetForm() {
-            document.getElementById('editItemId').value = '';
-            document.getElementById('itemName').value = ''; document.getElementById('itemPrice').value = '';
-            document.getElementById('itemCategorySelect').value = 'Uncategorized';
-            document.getElementById('itemCategoryInput').style.display = 'none';
-            document.getElementById('itemDiscount').value = ''; document.getElementById('itemDesc').value = '';
-            document.querySelectorAll('#tagFeatured,#tagStandard,#tagBest,#tagSelling').forEach(c => c.checked = false);
-            document.querySelectorAll('.allergenCheck,.dietaryCheck').forEach(c => c.checked = false);
-            document.getElementById('itemImagePreview').style.display = 'none';
-            document.getElementById('itemImageFile').value = ''; document.getElementById('itemImageFile').dataset.autoUrl = '';
-            document.getElementById('variantsContainer').innerHTML = '';
-            createDefaultVariantRow();
-            document.getElementById('cancelEditBtn').style.display = 'none';
-            document.getElementById('submitItemBtn').textContent = 'Save Item';
-        }
-        async function saveItem(andClear) {
-            const id = document.getElementById('editItemId').value;
-            const name = document.getElementById('itemName').value.trim();
-            if (!name) return toast('Name required', true);
-            let category = document.getElementById('itemCategorySelect').value;
-            if (category === '__new__') category = document.getElementById('itemCategoryInput').value.trim() || 'Uncategorized';
-            const price = parseFloat(document.getElementById('itemPrice').value) || 0;
-            const discount = document.getElementById('itemDiscount').value;
-            const desc = document.getElementById('itemDesc').value;
-            const tags = [];
-            if (document.getElementById('tagFeatured').checked) tags.push('featured');
-            if (document.getElementById('tagStandard').checked) tags.push('standard');
-            if (document.getElementById('tagBest').checked) tags.push('best');
-            if (document.getElementById('tagSelling').checked) tags.push('bestselling');
-            const allergens = Array.from(document.querySelectorAll('.allergenCheck:checked')).map(c => c.value);
-            const dietary = Array.from(document.querySelectorAll('.dietaryCheck:checked')).map(c => c.value);
-            const varParts = [];
-            document.querySelectorAll('#variantsContainer > div').forEach(row => {
-                const vName = row.querySelector('.var-name')?.value.trim();
-                const vPrice = row.querySelector('.var-price')?.value;
-                if (vName && vPrice) varParts.push(vName + '=' + vPrice);
+        function renderMenu(initial = false) {
+            let filtered = menuItems.filter(i => {
+                if (dietaryFilter === 'all') return true;
+                if (dietaryFilter === 'vegan') return (i.dietary || []).includes('vegan');
+                if (dietaryFilter === 'jain') return (i.dietary || []).includes('jain');
+                if (dietaryFilter === 'gluten-free') return !(i.allergens || []).includes('gluten');
+                return true;
             });
-            const finalDesc = varParts.length ? 'VAR::' + varParts.join('|') : desc;
-            let imageUrl = document.getElementById('itemImageFile').dataset.autoUrl || '';
-            const file = document.getElementById('itemImageFile').files[0];
-            if (file) {
-                const form = new FormData(); form.append('image', file);
-                const res = await fetch(IMG_UPLOAD_URL, { method:'POST', headers:{'Authorization':`Bearer ${SUPABASE_ANON_KEY}`}, body:form });
-                const data = await res.json();
-                if(data.url) imageUrl = data.url;
-            }
-            const itemData = {
-                name, price, category, discount, description: finalDesc,
-                featured: tags.includes('featured'), tags: tags.join(',') || null,
-                allergens, dietary, image_url: imageUrl || null
-            };
-            if (id) {
-                const { error } = await _sb.from('menu_items').update(itemData).eq('id', id);
-                if (error) { toast('Update failed: ' + error.message, true); return; }
-                toast('Item updated');
+
+            const search = document.getElementById('searchBar').value.toLowerCase();
+            filtered = filtered.filter(i => (i.name||'').toLowerCase().includes(search) || (i.description||'').toLowerCase().includes(search));
+            filtered = filtered.filter(i => activeCategory === 'All' || i.category === activeCategory);
+
+            const cats = ['All', ...new Set(menuItems.map(i => i.category).filter(Boolean))].sort();
+            document.getElementById('categoryTabs').innerHTML = cats.map(c => `<button class="cat-btn${c===activeCategory?' active':''}" data-cat="${c}">${c}</button>`).join('');
+            document.querySelectorAll('.cat-btn').forEach(b => b.addEventListener('click', function() { activeCategory = this.dataset.cat; renderMenu(); }));
+
+            let html = '';
+            if (!filtered.length) {
+                html = `<div class="empty-state"><div class="empty-icon">🍽️</div><p>${tl('noItems')}</p></div>`;
             } else {
-                const { error } = await _sb.from('menu_items').insert({ ...itemData, cafe_id: cafeData.id });
-                if (error) { toast('Insert failed: ' + error.message, true); return; }
-                toast('Item added');
-            }
-            loadItems(); loadStats();
-            resetForm();
-            if (andClear) { document.getElementById('itemName').value = ''; document.getElementById('itemPrice').value = ''; }
-        }
-        document.getElementById('submitItemBtn').addEventListener('click', () => saveItem(false));
-        document.getElementById('saveAndNextBtn').addEventListener('click', () => saveItem(true));
+                const catSet = activeCategory === 'All' ? [...new Set(filtered.map(i => i.category))].sort() : [activeCategory];
+                catSet.forEach(cat => {
+                    const catItems = filtered.filter(i => i.category === cat);
+                    if (!catItems.length) return;
+                    html += `<div class="category-section"><h3 class="section-heading">${cat}</h3>`;
+                    catItems.forEach(item => {
+                        const tags = (item.tags||'').split(',').map(t=>t.trim());
+                        let badges = '';
+                        if (tags.includes('featured')) badges += '<span class="badge badge-featured">✦ Special</span> ';
+                        if (tags.includes('new')) badges += '<span class="badge badge-new">New</span> ';
+                        if (tags.includes('discount')) badges += '<span class="badge badge-discount">Sale</span> ';
+                        if (item.allergens) {
+                            item.allergens.forEach(a => {
+                                if (a === 'gluten') badges += '<span class="badge badge-red" style="background:rgba(231,76,60,0.15);color:#e74c3c;border:1px solid rgba(231,76,60,0.3);">🌾 Gluten</span> ';
+                                else if (a === 'dairy') badges += '<span class="badge badge-red" style="background:rgba(231,76,60,0.15);color:#e74c3c;border:1px solid rgba(231,76,60,0.3);">🥛 Dairy</span> ';
+                                else if (a === 'nuts') badges += '<span class="badge badge-red" style="background:rgba(231,76,60,0.15);color:#e74c3c;border:1px solid rgba(231,76,60,0.3);">🥜 Nuts</span> ';
+                            });
+                        }
+                        if (item.dietary) {
+                            item.dietary.forEach(d => {
+                                if (d === 'vegan') badges += '<span class="badge" style="background:rgba(46,204,113,0.15);color:#2ecc71;border:1px solid rgba(46,204,113,0.3);">🌱 Vegan</span> ';
+                                else if (d === 'jain') badges += '<span class="badge" style="background:rgba(46,204,113,0.15);color:#2ecc71;border:1px solid rgba(46,204,113,0.3);">🕉️ Jain</span> ';
+                            });
+                        }
 
-        // ---- News ----
-        async function loadNews() {
-            if (!cafeData) return;
-            const { data } = await _sb.from('news_posts').select('*').eq('cafe_id', cafeData.id).order('created_at', { ascending: false });
-            document.getElementById('newsList').innerHTML = data.length ? data.map(p => `
-                <div class="news-item">
-                    <h4>${p.title}</h4>
-                    <p>${p.body}</p>
-                    <small style="color:var(--muted)">${new Date(p.created_at).toLocaleDateString()}</small>
-                </div>`).join('') : '<p style="color:var(--muted);">No news yet.</p>';
-        }
-        document.getElementById('addNewsBtn').addEventListener('click', async () => {
-            const title = document.getElementById('newsTitle').value.trim();
-            const body = document.getElementById('newsBody').value.trim();
-            if (!title || !body) return toast('Fill title and body', true);
-            const { error } = await _sb.from('news_posts').insert({ cafe_id: cafeData.id, title, body });
-            if (error) toast('News post failed: ' + error.message, true);
-            else { document.getElementById('newsTitle').value = ''; document.getElementById('newsBody').value = ''; loadNews(); toast('News posted!'); }
-        });
+                        const hasVariants = item.description?.startsWith('VAR::');
+                        let variants = [], priceDisplay = item.price;
+                        let itemDescText = item.description || '';
+                        if (hasVariants) {
+                            const vStr = item.description.replace('VAR::','');
+                            variants = vStr.split('|').map(v => { const [n,p] = v.split('='); return { name:n, price:parseFloat(p) }; });
+                            if (variants.length) priceDisplay = variants[0].price;
+                            itemDescText = '';
+                        }
 
-        // ---- AI Scanner (with compression) ----
-        document.getElementById('takePhotoBtn').addEventListener('click', () => { document.getElementById('aiMenuImageFile').setAttribute('capture','environment'); document.getElementById('aiMenuImageFile').click(); });
-        document.getElementById('galleryUploadBtn').addEventListener('click', () => { document.getElementById('aiMenuImageFile').removeAttribute('capture'); document.getElementById('aiMenuImageFile').click(); });
-        document.getElementById('aiMenuImageFile').addEventListener('change', function() {
-            for (const file of this.files) {
-                if (!selectedFiles.find(f => f.name === file.name && f.size === file.size)) selectedFiles.push(file);
-            }
-            updatePreviews();
-            this.value = '';
-        });
-        function updatePreviews() {
-            const container = document.getElementById('aiPreviews');
-            container.innerHTML = '';
-            selectedFiles.forEach((file, i) => {
-                const reader = new FileReader();
-                reader.onload = e => {
-                    const div = document.createElement('div'); div.style.position = 'relative';
-                    div.innerHTML = `<img src="${e.target.result}" style="width:60px;height:60px;border-radius:8px;object-fit:cover;"><button style="position:absolute;top:-5px;right:-5px;background:#e74c3c;color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:10px;" onclick="selectedFiles.splice(${i},1);updatePreviews();">✕</button>`;
-                    container.appendChild(div);
-                };
-                reader.readAsDataURL(file);
-            });
-            document.getElementById('scanMenuBtn').style.display = selectedFiles.length ? 'inline-block' : 'none';
-        }
-        document.getElementById('scanMenuBtn').addEventListener('click', async () => {
-            if (!cafeData.id) return toast('Cafe not ready', true);
-            if (selectedFiles.length === 0) return toast('No images selected', true);
-            const statusEl = document.getElementById('aiScannerStatus');
-            statusEl.innerHTML = 'Compressing and scanning...';
-            statusEl.style.color = 'var(--amber)';
-            document.getElementById('scanMenuBtn').disabled = true;
+                        let variantHTML = '';
+                        if (variants.length) {
+                            variantHTML = `<div class="variant-pills">${variants.map((v,i) => `<button class="variant-pill${i===0?' selected':''}" data-price="${v.price}" data-vname="${v.name}">${v.name} ₹${v.price}</button>`).join('')}</div>`;
+                        }
 
-            let allInsertedItems = [];
-            let processedCount = 0;
-            let lastDebug = '';
+                        const imgHtml = (item.image_url||'').trim() ? `<div class="img-wrap"><img src="${item.image_url}" class="menu-item-img" loading="lazy" alt="${item.name}"></div>` : '';
+                        const cartItem = cart.find(c => c.id == item.id);
+                        const qty = cartItem?.qty || 0;
 
-            for (let i = 0; i < selectedFiles.length; i++) {
-                const file = selectedFiles[i];
-                try {
-                    const compressedBase64 = await compressImage(file);
-                    const response = await fetch(GEMINI_URL, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
-                        body: JSON.stringify({ imageBase64: compressedBase64, mimeType: 'image/jpeg' })
+                        html += `
+                        <div class="menu-item" data-id="${item.id}" data-name="${item.name}" data-base-price="${priceDisplay}">
+                            ${imgHtml}
+                            <div class="item-details">
+                                <div class="item-name">${item.name}</div>
+                                ${badges ? `<div style="margin:5px 0 2px;">${badges}</div>` : ''}
+                                ${itemDescText && !hasVariants ? `<div class="item-desc">${itemDescText}</div>` : ''}
+                                ${variantHTML}
+                                <div class="item-price">₹<span class="active-price">${priceDisplay}</span></div>
+                            </div>
+                            <div class="qty-controls">
+                                <button class="qty-btn qty-plus${qty>0?' has-qty':''}">+</button>
+                                <span class="qty-num">${qty}</span>
+                                <button class="qty-btn qty-minus${qty>0?' has-qty':''}">−</button>
+                            </div>
+                        </div>`;
                     });
-                    const result = await response.json();
-                    if (!response.ok) throw new Error(result.error || result.message || `HTTP ${response.status}`);
-                    if (result.error) throw new Error(typeof result.error === 'string' ? result.error : JSON.stringify(result.error));
-                    if (result.debug) lastDebug = result.debug;
-                    const items = result.items;
-                    if (items && items.length > 0) {
-                        const inserts = items.map(item => {
-                            let desc = item.description || '';
-                            if (item.variants && item.variants.length > 0) {
-                                const varParts = item.variants.map(v => `${v.name}=${v.price}`).join('|');
-                                desc = 'VAR::' + varParts;
-                            }
-                            return { cafe_id: cafeData.id, name: item.name, price: parseFloat(item.price) || 0, category: item.category || 'Uncategorized', description: desc, available: true };
-                        });
-                        allInsertedItems = allInsertedItems.concat(inserts);
-                    }
-                    processedCount++;
-                } catch (err) {
-                    console.error('Error on image ' + (i + 1), err);
-                    toast(`Image ${i + 1} failed: ${err.message}`, true);
-                    processedCount++;
+                    html += '</div>';
+                });
+            }
+            document.getElementById('menuSections').innerHTML = html;
+            attachItemEvents();
+            if (initial || search === '') {
+                gsap.fromTo('.menu-item', { opacity:0, y:28, scale:0.96 }, { opacity:1, y:0, scale:1, stagger:0.05, duration:0.5, ease:'power3.out', clearProps:'scale' });
+            } else {
+                document.querySelectorAll('.menu-item').forEach(el => { el.style.opacity = 1; el.style.transform = 'none'; });
+            }
+        }
+
+        let searchTimer;
+        document.getElementById('searchBar').addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => renderMenu(false), 260); });
+
+        function attachItemEvents() {
+            document.querySelectorAll('.variant-pill').forEach(p => p.addEventListener('click', function() {
+                const itemEl = this.closest('.menu-item');
+                itemEl.querySelectorAll('.variant-pill').forEach(b => b.classList.remove('selected'));
+                this.classList.add('selected');
+                itemEl.querySelector('.active-price').textContent = parseFloat(this.dataset.price).toFixed(2);
+                itemEl.dataset.basePrice = this.dataset.price;
+            }));
+
+            document.querySelectorAll('.qty-plus').forEach(btn => btn.addEventListener('click', function() {
+                const itemEl = this.closest('.menu-item');
+                const id = itemEl.dataset.id;
+                const name = itemEl.dataset.name;
+                const price = parseFloat(itemEl.dataset.basePrice);
+                const selectedPill = itemEl.querySelector('.variant-pill.selected');
+                const variant = selectedPill ? selectedPill.dataset.vname : null;
+                const cartKey = variant ? `${id}__${variant}` : id;
+                const existing = cart.find(c => c.cartKey === cartKey);
+                if (existing) existing.qty++;
+                else cart.push({ cartKey, id, name, price, qty:1, variant });
+                updateCartUI();
+                const numEl = itemEl.querySelector('.qty-num');
+                numEl.textContent = existing ? existing.qty : 1;
+                const fb = document.getElementById('floatingCart');
+                fb.classList.remove('pulse'); void fb.offsetWidth; fb.classList.add('pulse');
+            }));
+            document.querySelectorAll('.qty-minus').forEach(btn => btn.addEventListener('click', function() {
+                const itemEl = this.closest('.menu-item');
+                const id = itemEl.dataset.id;
+                const selectedPill = itemEl.querySelector('.variant-pill.selected');
+                const variant = selectedPill ? selectedPill.dataset.vname : null;
+                const cartKey = variant ? `${id}__${variant}` : id;
+                const existing = cart.find(c => c.cartKey === cartKey);
+                if (existing) {
+                    existing.qty--;
+                    if (existing.qty <= 0) cart = cart.filter(c => c.cartKey !== cartKey);
+                }
+                updateCartUI();
+                const numEl = itemEl.querySelector('.qty-num');
+                const current = cart.find(c => c.cartKey === cartKey);
+                numEl.textContent = current ? current.qty : 0;
+            }));
+        }
+
+        function updateCartUI() {
+            localStorage.setItem('cafe_cart', JSON.stringify(cart));
+            const totalQty = cart.reduce((s,c) => s + c.qty, 0);
+            const totalPrice = cart.reduce((s,c) => s + c.price*c.qty, 0);
+            const badge = document.getElementById('cartBadge');
+            if (totalQty > 0) { badge.textContent = totalQty; badge.style.display = 'flex'; badge.classList.remove('pop'); void badge.offsetWidth; badge.classList.add('pop'); }
+            else { badge.style.display = 'none'; }
+            document.getElementById('cartTotal').textContent = totalPrice.toFixed(2);
+            document.getElementById('cartCountLabel').textContent = totalQty ? `${totalQty} item${totalQty>1?'s':''}` : '';
+            document.getElementById('cartItemsList').innerHTML = cart.length ? cart.map(c => `<div class="cart-item-row"><span class="cart-item-name">${c.name}${c.variant?' ('+c.variant+')':''}&nbsp;&nbsp;×${c.qty}</span><span class="cart-item-price">₹${(c.price*c.qty).toFixed(2)}</span></div>`).join('') : '<p style="color:var(--muted);font-size:0.9rem;padding:1rem 0;">No items yet.</p>';
+        }
+
+        document.getElementById('floatingCart').addEventListener('click', () => { if (!cart.length) return showToast(tl('cartEmpty')); document.getElementById('cartPanel').classList.add('open'); });
+        document.getElementById('closeCartBtn').addEventListener('click', () => document.getElementById('cartPanel').classList.remove('open'));
+
+        document.getElementById('waiterBtn').addEventListener('click', async function() {
+            let table = document.getElementById('tableNumber').value.trim() || tableParam;
+            if (!table) { table = prompt(tl('tableReq')); if (!table) return; }
+            const name = prompt(tl('name')) || 'Guest';
+            const { error } = await _sb.from('orders').insert({
+                cafe_id: cafeId,
+                customer_name: name,
+                table_number: table,
+                items: [{ name: '🚨 Waiter Call', price: 0, qty: 1 }],
+                total: 0,
+                status: 'new'
+            });
+            if (error) showToast('Waiter call failed: ' + error.message);
+            else { showToast(tl('waiterCall')); this.classList.remove('ring'); void this.offsetWidth; this.classList.add('ring'); }
+        });
+
+        document.getElementById('placeOrderBtn').addEventListener('click', async () => {
+            if (!cart.length) return showToast(tl('cartEmpty'));
+            const table = document.getElementById('tableNumber').value.trim() || tableParam || '';
+            if (!table) return showToast(tl('tableReq'));
+            const specialInstructions = document.getElementById('specialInstructions').value.trim();
+            const orderItems = cart.map(c => ({ name: c.name + (c.variant?' ('+c.variant+')':''), price: c.price, qty: c.qty }));
+            const total = cart.reduce((s,c) => s + c.price*c.qty, 0);
+            const { data: order, error } = await _sb.from('orders').insert({
+                cafe_id: cafeId,
+                customer_name: document.getElementById('customerName').value.trim() || 'Guest',
+                table_number: table,
+                items: orderItems,
+                total: total,
+                status: 'new',
+                special_instructions: specialInstructions
+            }).select().maybeSingle();
+            if (error) { showToast('Order failed: ' + error.message); return; }
+
+            // Upsell prompt (if enabled)
+            if (cafeData.upsell_enabled) {
+                const upsellItem = menuItems.find(i => !cart.find(c => c.id == i.id));
+                if (upsellItem) {
+                    setTimeout(() => {
+                        if (confirm(`Would you like to add a ${upsellItem.name} for ₹${upsellItem.price}?`)) {
+                            cart.push({ cartKey: upsellItem.id, id: upsellItem.id, name: upsellItem.name, price: upsellItem.price, qty: 1 });
+                            updateCartUI();
+                            renderMenu(false);
+                        }
+                    }, 1000);
                 }
             }
 
-            if (allInsertedItems.length > 0) {
-                const { error } = await _sb.from('menu_items').insert(allInsertedItems);
-                if (error) { statusEl.innerHTML = `❌ Failed to save items: ${error.message}`; statusEl.style.color = '#c0392b'; }
-                else { statusEl.innerHTML = `🎉 Success! ${allInsertedItems.length} items added from ${processedCount} image(s).`; statusEl.style.color = '#27ae60'; }
+            // Loyalty update
+            if (cafeData.loyalty_enabled) {
+                const deviceId = localStorage.getItem('digity_device_id');
+                if (deviceId) {
+                    const { data: loyalty } = await _sb.from('loyalty').select('*').eq('cafe_id', cafeId).eq('customer_identifier', deviceId).maybeSingle();
+                    if (loyalty) {
+                        const newCount = loyalty.orders_count + 1;
+                        await _sb.from('loyalty').update({ orders_count: newCount }).eq('id', loyalty.id);
+                        document.getElementById('loyaltyCount').textContent = newCount;
+                        document.getElementById('loyaltyBadge').style.display = 'flex';
+                        if (newCount >= 10 && !loyalty.reward_claimed) {
+                            showToast('🎉 You earned a free reward! Show this to the staff.');
+                            await _sb.from('loyalty').update({ reward_claimed: true }).eq('id', loyalty.id);
+                        }
+                    } else {
+                        await _sb.from('loyalty').insert({ cafe_id: cafeId, customer_identifier: deviceId, orders_count: 1 });
+                        document.getElementById('loyaltyBadge').style.display = 'flex';
+                        document.getElementById('loyaltyCount').textContent = '1';
+                    }
+                }
+            }
+
+            cart = [];
+            updateCartUI();
+            document.getElementById('cartPanel').classList.remove('open');
+            const overlay = document.getElementById('successOverlay');
+            overlay.classList.add('show');
+            for (let i = 0; i < 16; i++) {
+                const dot = document.createElement('div'); dot.className = 'confetti-dot';
+                const ang = (i/16)*360, r = 60 + Math.random()*80;
+                dot.style.setProperty('--fly', `translate(${Math.cos(ang*Math.PI/180)*r}px, ${Math.sin(ang*Math.PI/180)*r}px)`);
+                dot.style.left = '50%'; dot.style.top = '40%';
+                dot.style.background = ['#e8921a','#f5b445','#fff','#e74c3c'][i%4];
+                dot.style.animationDelay = (Math.random()*0.3) + 's';
+                overlay.appendChild(dot);
+            }
+            setTimeout(() => { overlay.classList.remove('show'); overlay.querySelectorAll('.confetti-dot').forEach(d => d.remove()); }, 3600);
+
+            if (cafeData.google_review_url) {
+                setTimeout(() => {
+                    if (confirm('Enjoyed your experience? Leave us a Google review!')) {
+                        window.open(cafeData.google_review_url, '_blank');
+                    }
+                }, 1500);
+            }
+
+            if (cafeData.telegram_chat_id) {
+                showToast('Sending Telegram notification...');
+                fetch(TELEGRAM_NOTIFY_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+                    body: JSON.stringify({
+                        chat_id: cafeData.telegram_chat_id,
+                        cafe_name: cafeData.cafe_name,
+                        table: table,
+                        customer: document.getElementById('customerName').value.trim() || 'Guest',
+                        items: orderItems,
+                        total: total
+                    })
+                }).then(r => r.json()).then(d => {
+                    if (d.ok) showToast('Telegram sent!');
+                }).catch(e => showToast('Telegram error: ' + e.message));
             } else {
-                statusEl.innerHTML = `❌ No items detected.${lastDebug ? ' AI says: ' + lastDebug : ''}`;
-                statusEl.style.color = '#c0392b';
-                if (lastDebug) toast('AI raw output: ' + lastDebug, true);
+                showToast('No Telegram chat ID saved. Notification skipped.', true);
             }
 
-            document.getElementById('scanMenuBtn').disabled = false;
-            selectedFiles = [];
-            updatePreviews();
-            document.getElementById('scanMenuBtn').style.display = 'none';
-            loadItems(); loadStats();
-        });
-
-        // ---- Auto image for items ----
-        document.getElementById('autoImageBtn').addEventListener('click', async () => {
-            const name = document.getElementById('itemName').value.trim();
-            if(!name) return toast('Enter item name');
-            const res = await fetch(AUTO_IMG_URL, { method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${SUPABASE_ANON_KEY}`}, body:JSON.stringify({query:name}) });
-            const data = await res.json();
-            if(data.imageUrl) {
-                document.getElementById('itemImagePreview').src = data.imageUrl;
-                document.getElementById('itemImagePreview').style.display = 'block';
-                document.getElementById('itemImageFile').dataset.autoUrl = data.imageUrl;
+            // Redirect to order tracking
+            if (order) {
+                setTimeout(() => {
+                    window.location.href = `track.html?id=${order.id}`;
+                }, 2000);
             }
         });
 
-        init();
+        // Voice order
+        let recognition = null;
+        const voiceBtn = document.getElementById('voiceOrderBtn');
+        voiceBtn.addEventListener('click', () => {
+            if (recognition) {
+                recognition.stop(); recognition = null;
+                voiceBtn.classList.remove('listening'); voiceBtn.textContent = '🎤';
+                return;
+            }
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) { showToast('Voice input not supported on this device'); return; }
+            recognition = new SpeechRecognition();
+            recognition.lang = 'hi-IN';
+            recognition.interimResults = false;
+            recognition.onstart = () => { voiceBtn.classList.add('listening'); voiceBtn.textContent = '🔴'; };
+            recognition.onresult = async (event) => {
+                const transcript = event.results[0][0].transcript;
+                showToast('Heard: ' + transcript);
+                try {
+                    const res = await fetch(GEMINI_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+                        body: JSON.stringify({ promptExtra: `Extract ordered items from this text: "${transcript}". Return JSON array of {name, qty}.` })
+                    });
+                    const data = await res.json();
+                    const items = JSON.parse(data.result);
+                    items.forEach(item => {
+                        const menuItem = menuItems.find(i => i.name.toLowerCase().includes(item.name.toLowerCase()));
+                        if (menuItem) {
+                            const existing = cart.find(c => c.id == menuItem.id);
+                            if (existing) existing.qty += item.qty || 1;
+                            else cart.push({ cartKey: menuItem.id, id: menuItem.id, name: menuItem.name, price: menuItem.price, qty: item.qty || 1 });
+                        }
+                    });
+                    updateCartUI();
+                    renderMenu(false);
+                } catch (e) { showToast('Could not understand the order. Please try again.'); }
+            };
+            recognition.onerror = (event) => { showToast('Voice error: ' + event.error); voiceBtn.classList.remove('listening'); voiceBtn.textContent = '🎤'; recognition = null; };
+            recognition.onend = () => { voiceBtn.classList.remove('listening'); voiceBtn.textContent = '🎤'; recognition = null; };
+            recognition.start();
+        });
+
+        // News loader
+        async function loadNews() {
+            if (!cafeId) return;
+            const { data, error } = await _sb.from('news_posts')
+                .select('title, body')
+                .eq('cafe_id', cafeId)
+                .order('created_at', { ascending: false })
+                .limit(3);
+            if (error) { console.error('News fetch error:', error); return; }
+            if (data && data.length > 0) {
+                const ticker = document.getElementById('newsTicker');
+                ticker.style.display = 'flex';
+                // Show title and body in the ticker
+                document.getElementById('newsTickerText').innerHTML = data.map(p => `<strong>${p.title}</strong> – ${p.body}`).join(' &nbsp;|&nbsp; ');
+            } else {
+                document.getElementById('newsTicker').style.display = 'none';
+            }
+        }
+
+        async function subscribeToPush() {
+            if (!('serviceWorkerRegistration' in navigator)) return;
+            const permission = await Notification.requestPermission();
+            if (permission !== 'granted') return;
+            const registration = await navigator.serviceWorker.ready;
+            const subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array('BOJNjVMti7_75Jw9dJOeFCi_GuXbJJXPo4gE2MuO7fmm0Vn8l5Z1FWJ4WqhAxudqFt4RVhFFyU5cy3NDD1jhgo')
+            });
+            await _sb.from('push_subscriptions').insert({
+                cafe_id: cafeId,
+                endpoint: subscription.endpoint,
+                p256dh: btoa(String.fromCharCode.apply(null, new Uint8Array(subscription.getKey('p256dh')))),
+                auth: btoa(String.fromCharCode.apply(null, new Uint8Array(subscription.getKey('auth'))))
+            });
+            showToast('Notifications enabled!');
+        }
+        function urlBase64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+            for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+            return outputArray;
+        }
+
+        loadMenu();
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/Digity/sw.js').catch(() => {});
         }
