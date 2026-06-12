@@ -48,6 +48,7 @@
         .badge-trial { background:rgba(232,146,26,0.2); color:var(--primary); }
         .badge-active { background:rgba(46,204,113,0.2); color:#2ecc71; }
         .badge-pending { background:rgba(231,76,60,0.2); color:#e74c3c; }
+        .badge-expired { background:rgba(231,76,60,0.2); color:#c0392b; }
         .btn {
             padding:0.5rem 1rem; border-radius:8px; border:1px solid var(--border);
             background:var(--card); color:var(--text); cursor:pointer; font-size:0.8rem;
@@ -55,6 +56,7 @@
         }
         .btn-primary { background:var(--primary); color:#fff; border:none; }
         .btn-danger { background:#c0392b; color:#fff; border:none; }
+        .btn-warning { background:#e67e22; color:#fff; border:none; }
         .btn:hover { opacity:0.9; transform:translateY(-1px); }
         input, select {
             width:100%; padding:0.7rem; border-radius:10px;
@@ -88,7 +90,7 @@
             <h2>☕ All Cafes</h2>
             <div style="overflow-x:auto;">
                 <table id="cafeTable">
-                    <thead><tr><th>Name</th><th>Status</th><th>Trial Ends</th><th>UPI</th><th>Action</th></tr></thead>
+                    <thead><tr><th>Name</th><th>Status</th><th>Trial Ends</th><th>UPI</th><th>Actions</th></tr></thead>
                     <tbody></tbody>
                 </table>
             </div>
@@ -196,14 +198,21 @@
             const tbody = document.querySelector('#cafeTable tbody');
             tbody.innerHTML = cafes.map(c => {
                 const status = c.subscription_status || 'trial';
-                const badgeClass = status === 'active' ? 'active' : (status === 'trial' ? 'trial' : 'pending');
+                const trialEnds = c.trial_ends_at ? new Date(c.trial_ends_at) : null;
+                const isExpired = trialEnds && trialEnds < new Date();
+                const displayStatus = isExpired && status === 'trial' ? 'expired' : status;
+                const badgeClass = displayStatus === 'active' ? 'active' : (displayStatus === 'trial' ? 'trial' : (displayStatus === 'pending' ? 'pending' : 'expired'));
                 const upiCell = status === 'pending' ? `<button class="btn btn-primary" onclick="approveUpi('${c.id}')">Approve</button>` : (c.upi_transaction_id || '—');
+                const actions = `
+                    <button class="btn btn-warning" onclick="endTrial('${c.id}')">End Trial</button>
+                    <button class="btn btn-danger" onclick="deleteCafe('${c.id}')">🗑️</button>
+                `;
                 return `<tr>
                     <td>${c.cafe_name}</td>
-                    <td><span class="badge badge-${badgeClass}">${status}</span></td>
-                    <td>${c.trial_ends_at ? new Date(c.trial_ends_at).toLocaleDateString() : '—'}</td>
+                    <td><span class="badge badge-${badgeClass}">${displayStatus}</span></td>
+                    <td>${trialEnds ? trialEnds.toLocaleDateString() : '—'}</td>
                     <td>${upiCell}</td>
-                    <td><button class="btn btn-danger" onclick="deleteCafe('${c.id}')">🗑️</button></td>
+                    <td>${actions}</td>
                 </tr>`;
             }).join('');
         }
@@ -214,6 +223,18 @@
             if (error) alert('Error: ' + error.message);
             else { alert('Approved!'); loadCafes(); init(); }
         };
+
+        window.endTrial = async (cafeId) => {
+            if (!confirm('End the trial immediately? The café will see the paywall and must subscribe to continue.')) return;
+            const now = new Date().toISOString();
+            const { error } = await _sb.from('cafes').update({
+                trial_ends_at: now,
+                subscription_status: 'expired'
+            }).eq('id', cafeId);
+            if (error) alert('Error: ' + error.message);
+            else { alert('Trial ended. Café is now expired.'); loadCafes(); init(); }
+        };
+
         window.deleteCafe = async (cafeId) => {
             if (!confirm('Delete this cafe? This cannot be undone.')) return;
             const { error } = await _sb.from('cafes').delete().eq('id', cafeId);
