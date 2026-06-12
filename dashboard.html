@@ -45,6 +45,12 @@
         }
         .header-actions button:hover, .header-actions select:hover { border-color:var(--amber); color:var(--amber); }
         .btn-sm { padding:0.3rem 0.7rem !important; font-size:0.72rem !important; }
+        .btn-advertise {
+            background: var(--amber); color: #fff; border: none;
+            padding: 0.55rem 1rem; border-radius: 30px; font-weight: 600;
+            font-size: 0.82rem; cursor: pointer; transition: 0.2s;
+        }
+        .btn-advertise:hover { background: var(--amber-lt); }
         .card {
             background:var(--card-bg); border:1px solid var(--card-border);
             border-radius:var(--radius); padding:1.5rem; margin-bottom:1.2rem; box-shadow:var(--shadow);
@@ -170,6 +176,9 @@
             <div style="display:flex; gap:1rem; align-items:center; margin-bottom:1rem;">
                 <label>Enable Upsell Prompts</label><label class="switch"><input type="checkbox" id="setUpsell"><span class="slider"></span></label>
             </div>
+            <select id="setUpsellItem" style="margin-bottom:1rem;">
+                <option value="">-- Auto (pick best item) --</option>
+            </select>
             <div style="display:flex; gap:1rem; align-items:center; margin-bottom:1rem;">
                 <label>Cafe Logo</label>
                 <button id="uploadLogoBtn" class="btn">📷 Upload</button>
@@ -179,11 +188,23 @@
         </div>
     </div>
 
+    <!-- Advertise Modal -->
+    <div id="advertiseModal" class="modal-overlay">
+        <div class="modal support-modal">
+            <button class="modal-close" id="closeAdvertiseModal">&times;</button>
+            <h3 style="color:var(--amber); margin-bottom:1rem;">📢 Advertise Your Café</h3>
+            <p style="margin-bottom:1rem;">Tell us what you need – more visibility, special promotion, etc. We'll get back to you!</p>
+            <textarea id="advertiseMessage" rows="4" placeholder="Describe your request…"></textarea>
+            <button id="submitAdvertiseBtn" class="btn-primary" style="width:100%;">Submit</button>
+        </div>
+    </div>
+
     <div class="container">
         <div class="header-row">
             <div class="logo">☕ Digity <span style="font-size:0.7rem;color:var(--muted);font-family:'Plus Jakarta Sans',sans-serif;">Dashboard</span></div>
             <div class="header-actions">
                 <button id="settingsIcon" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">⚙️</button>
+                <button id="advertiseBtn" class="btn-advertise">📢 Advertise</button>
                 <button id="themeToggle">🌙</button>
                 <button id="unmuteBtn">🔊</button>
                 <button id="testAlertBtn">📢</button>
@@ -429,7 +450,8 @@
                     custom_domain: document.getElementById('setCustomDomain').value.trim(),
                     avg_prep_time: parseInt(document.getElementById('setAvgPrepTime').value) || 5,
                     loyalty_enabled: document.getElementById('setLoyalty').checked,
-                    upsell_enabled: document.getElementById('setUpsell').checked
+                    upsell_enabled: document.getElementById('setUpsell').checked,
+                    upsell_item_id: document.getElementById('setUpsellItem').value || null
                 };
                 const { error } = await _sb.from('cafes').update(u).eq('id', cafeData.id);
                 if (!error) {
@@ -444,6 +466,7 @@
             .forEach(input => input.addEventListener('input', autoSave));
         document.getElementById('setLoyalty').addEventListener('change', autoSave);
         document.getElementById('setUpsell').addEventListener('change', autoSave);
+        document.getElementById('setUpsellItem').addEventListener('change', autoSave);
 
         // Manual save button triggers immediate save
         document.getElementById('saveSettingsBtn').addEventListener('click', () => {
@@ -591,6 +614,9 @@
                     document.getElementById('logoPreview').style.display = 'block';
                 }
 
+                // Load upsell item dropdown
+                await loadUpsellItemOptions();
+
                 document.getElementById('copyCafeIdBtn').addEventListener('click', () => {
                     navigator.clipboard.writeText(cafeData.id); toast('Cafe ID copied!');
                 });
@@ -635,6 +661,25 @@
                     }).catch(() => toast('Error sending test.', true));
                 });
 
+                // Advertise button
+                document.getElementById('advertiseBtn').addEventListener('click', () => {
+                    document.getElementById('advertiseModal').classList.add('open');
+                });
+                document.getElementById('closeAdvertiseModal').addEventListener('click', () => {
+                    document.getElementById('advertiseModal').classList.remove('open');
+                });
+                document.getElementById('submitAdvertiseBtn').addEventListener('click', async () => {
+                    const msg = document.getElementById('advertiseMessage').value.trim();
+                    if (!msg) return toast('Enter a message', true);
+                    const { error } = await _sb.from('support_requests').insert({ cafe_id: cafeData.id, message: msg });
+                    if (error) toast('Failed to send request', true);
+                    else {
+                        toast('Request sent! We\'ll get back to you soon.');
+                        document.getElementById('advertiseModal').classList.remove('open');
+                        document.getElementById('advertiseMessage').value = '';
+                    }
+                });
+
                 // Check subscription
                 const canAccess = await checkSubscription();
 
@@ -646,6 +691,22 @@
                 toast('Dashboard ready');
             } catch (err) {
                 toast('Fatal error: ' + err.message, true);
+            }
+        }
+
+        async function loadUpsellItemOptions() {
+            const sel = document.getElementById('setUpsellItem');
+            sel.innerHTML = '<option value="">-- Auto (pick best item) --</option>';
+            if (!cafeData) return;
+            const { data: items } = await _sb.from('menu_items').select('id, name').eq('cafe_id', cafeData.id).eq('available', true);
+            if (items) {
+                items.forEach(item => {
+                    const opt = document.createElement('option');
+                    opt.value = item.id;
+                    opt.textContent = item.name;
+                    if (cafeData.upsell_item_id === item.id) opt.selected = true;
+                    sel.appendChild(opt);
+                });
             }
         }
 
