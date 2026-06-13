@@ -90,7 +90,6 @@
         .slider:before { position:absolute; content:""; height:18px; width:18px; left:3px; bottom:3px; background:white; border-radius:50%; transition:0.3s; }
         input:checked+.slider { background:var(--amber); }
         input:checked+.slider:before { transform:translateX(20px); }
-
         /* Settings modal */
         .modal-overlay {
             position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:100;
@@ -107,7 +106,6 @@
             position:absolute; top:1rem; right:1rem; background:none; border:none;
             color:var(--text); font-size:1.5rem; cursor:pointer;
         }
-
         /* Paywall overlay */
         .paywall-overlay {
             position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:200;
@@ -474,7 +472,6 @@
             }, 2000);
         }
 
-        // Attach auto-save to all settings inputs
         document.querySelectorAll('#setCafeName, #setWhatsapp, #setDesc, #setPrimary, #setAccent, #setGooglePlaceId, #setTelegramChatId, #setInstagram, #setFacebook, #setGoogleReview, #setCustomDomain, #setAvgPrepTime')
             .forEach(input => input.addEventListener('input', autoSave));
         document.getElementById('setLoyalty').addEventListener('change', autoSave);
@@ -484,18 +481,15 @@
         document.getElementById('setDailySpecialItem').addEventListener('change', autoSave);
         document.getElementById('setBirthdayRewards').addEventListener('change', autoSave);
 
-        // Manual save button triggers immediate save
         document.getElementById('saveSettingsBtn').addEventListener('click', () => {
             clearTimeout(saveTimeout);
             autoSave();
         });
 
-        // ---- Open Bot button ----
         document.getElementById('openBotBtn').addEventListener('click', () => {
             window.open('https://t.me/DigityAlertbot', '_blank');
         });
 
-        // ---- Fetch subscription settings and check trial ----
         async function checkSubscription() {
             const { data: sub } = await _sb.from('subscription_settings').select('*').single();
             subSettings = sub;
@@ -528,7 +522,6 @@
             document.getElementById('paywallOverlay').style.display = 'none';
         });
 
-        // ---- Daily Report button ----
         document.getElementById('sendReportBtn').addEventListener('click', async () => {
             if (!cafeData?.telegram_chat_id) return toast('Set Telegram Chat ID first', true);
             const since = new Date(Date.now() - 24*60*60*1000).toISOString();
@@ -540,9 +533,7 @@
             const totalOrders = orders.length;
             const totalRevenue = orders.reduce((sum, o) => sum + (o.total || 0), 0);
             let message = `📊 *Daily Report*\nCafe: ${cafeData.cafe_name}\nOrders: ${totalOrders}\nRevenue: ₹${totalRevenue}\n`;
-            if (orders.length > 0) {
-                message += `Last order: Table ${orders[0].table_number}, ₹${orders[0].total}`;
-            }
+            if (orders.length > 0) message += `Last order: Table ${orders[0].table_number}, ₹${orders[0].total}`;
             fetch(TELEGRAM_NOTIFY_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
@@ -561,7 +552,6 @@
             });
         });
 
-        // ---- Image compression ----
         function compressImage(file) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -591,7 +581,6 @@
             });
         }
 
-        // ---- Initialization ----
         async function init() {
             try {
                 const { data: { user } } = await _sb.auth.getUser();
@@ -609,7 +598,6 @@
                 }
                 cafeData = cafe;
 
-                // Fill settings fields
                 document.getElementById('setCafeName').value = cafeData.cafe_name || '';
                 document.getElementById('setWhatsapp').value = cafeData.whatsapp || '';
                 document.getElementById('setDesc').value = cafeData.description || '';
@@ -632,7 +620,6 @@
                     document.getElementById('logoPreview').style.display = 'block';
                 }
 
-                // Load upsell & daily special dropdowns
                 await loadUpsellItemOptions();
                 await loadDailySpecialOptions();
 
@@ -640,66 +627,45 @@
                     navigator.clipboard.writeText(cafeData.id); toast('Cafe ID copied!');
                 });
 
-                // Get from Bot button
                 document.getElementById('getFromBotBtn').addEventListener('click', async () => {
                     toast('Fetching chat ID…');
                     try {
-                        const res = await fetch(GET_CHAT_ID_URL, {
-                            headers: { 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
-                        });
+                        const res = await fetch(GET_CHAT_ID_URL, { headers: { 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } });
                         const data = await res.json();
                         if (data.chatId) {
                             document.getElementById('setTelegramChatId').value = data.chatId;
                             toast('Chat ID filled!');
-                        } else {
-                            toast('No messages yet. Send a message to your bot first.', true);
-                        }
-                    } catch (err) {
-                        toast('Error fetching chat ID.', true);
-                    }
+                        } else toast('No messages yet. Send a message to your bot first.', true);
+                    } catch (err) { toast('Error fetching chat ID.', true); }
                 });
 
-                // Test Telegram button
                 document.getElementById('testTelegramBtn').addEventListener('click', () => {
                     const chatId = document.getElementById('setTelegramChatId').value.trim();
                     if (!chatId) return toast('Enter a chat ID first', true);
                     fetch(TELEGRAM_NOTIFY_URL, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
-                        body: JSON.stringify({
-                            chat_id: chatId,
-                            cafe_name: 'Test',
-                            table: '0',
-                            customer: 'Test',
-                            items: [{ name: 'Test item', qty: 1 }],
-                            total: 0
-                        })
+                        body: JSON.stringify({ chat_id: chatId, cafe_name: 'Test', table: '0', customer: 'Test', items: [{ name: 'Test item', qty: 1 }], total: 0 })
                     }).then(r => r.json()).then(d => {
                         if (d.ok) toast('Test message sent!');
                         else toast('Failed to send test.', true);
                     }).catch(() => toast('Error sending test.', true));
                 });
 
-                // Advertise button
-                document.getElementById('advertiseBtn').addEventListener('click', () => {
-                    document.getElementById('advertiseModal').classList.add('open');
-                });
-                document.getElementById('closeAdvertiseModal').addEventListener('click', () => {
-                    document.getElementById('advertiseModal').classList.remove('open');
-                });
+                document.getElementById('advertiseBtn').addEventListener('click', () => document.getElementById('advertiseModal').classList.add('open'));
+                document.getElementById('closeAdvertiseModal').addEventListener('click', () => document.getElementById('advertiseModal').classList.remove('open'));
                 document.getElementById('submitAdvertiseBtn').addEventListener('click', async () => {
                     const msg = document.getElementById('advertiseMessage').value.trim();
                     if (!msg) return toast('Enter a message', true);
                     const { error } = await _sb.from('support_requests').insert({ cafe_id: cafeData.id, message: msg });
                     if (error) toast('Failed to send request', true);
                     else {
-                        toast('Request sent! We\'ll get back to you soon.');
+                        toast('Request sent!');
                         document.getElementById('advertiseModal').classList.remove('open');
                         document.getElementById('advertiseMessage').value = '';
                     }
                 });
 
-                // AI Description button
                 document.getElementById('aiDescBtn').addEventListener('click', async () => {
                     const name = document.getElementById('itemName').value.trim();
                     if (!name) return toast('Enter item name first', true);
@@ -712,23 +678,16 @@
                     if (data.result) {
                         document.getElementById('itemDesc').value = data.result.replace(/^[\[\]\"]+|[\[\]\"]+$/g, '');
                         toast('AI description generated!');
-                    } else {
-                        toast('AI failed to generate description', true);
-                    }
+                    } else toast('AI failed to generate description', true);
                 });
 
-                // Check subscription
-                const canAccess = await checkSubscription();
-
+                await checkSubscription();
                 await Promise.all([loadStats(), loadOrders(), loadItems(), loadNews()]);
                 setupRealtime();
                 createDefaultVariantRow();
                 loadRevenueChart();
-
                 toast('Dashboard ready');
-            } catch (err) {
-                toast('Fatal error: ' + err.message, true);
-            }
+            } catch (err) { toast('Fatal error: ' + err.message, true); }
         }
 
         async function loadUpsellItemOptions() {
@@ -736,15 +695,12 @@
             sel.innerHTML = '<option value="">-- Auto (pick best item) --</option>';
             if (!cafeData) return;
             const { data: items } = await _sb.from('menu_items').select('id, name').eq('cafe_id', cafeData.id).eq('available', true);
-            if (items) {
-                items.forEach(item => {
-                    const opt = document.createElement('option');
-                    opt.value = item.id;
-                    opt.textContent = item.name;
-                    if (cafeData.upsell_item_id === item.id) opt.selected = true;
-                    sel.appendChild(opt);
-                });
-            }
+            if (items) items.forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = item.id; opt.textContent = item.name;
+                if (cafeData.upsell_item_id === item.id) opt.selected = true;
+                sel.appendChild(opt);
+            });
         }
 
         async function loadDailySpecialOptions() {
@@ -752,37 +708,19 @@
             sel.innerHTML = '<option value="">-- None (random daily) --</option>';
             if (!cafeData) return;
             const { data: items } = await _sb.from('menu_items').select('id, name').eq('cafe_id', cafeData.id).eq('available', true);
-            if (items) {
-                items.forEach(item => {
-                    const opt = document.createElement('option');
-                    opt.value = item.id;
-                    opt.textContent = item.name;
-                    if (cafeData.daily_special_item_id === item.id) opt.selected = true;
-                    sel.appendChild(opt);
-                });
-            }
-        }
-
-        // ---- Revenue Chart ----
-        function loadRevenueChart() {
-            const ctx = document.getElementById('revenueChart').getContext('2d');
-            new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-                    datasets: [{
-                        label: 'Revenue (₹)',
-                        data: [0, 0, 0, 0, 0, 0, 0],
-                        backgroundColor: 'rgba(232, 146, 26, 0.6)',
-                        borderColor: '#e8921a',
-                        borderWidth: 1
-                    }]
-                },
-                options: { responsive: true }
+            if (items) items.forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = item.id; opt.textContent = item.name;
+                if (cafeData.daily_special_item_id === item.id) opt.selected = true;
+                sel.appendChild(opt);
             });
         }
 
-        // ---- Logo upload ----
+        function loadRevenueChart() {
+            const ctx = document.getElementById('revenueChart').getContext('2d');
+            new Chart(ctx, { type: 'bar', data: { labels: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'], datasets: [{ label: 'Revenue (₹)', data: [0,0,0,0,0,0,0], backgroundColor: 'rgba(232,146,26,0.6)', borderColor: '#e8921a', borderWidth: 1 }] }, options: { responsive: true } });
+        }
+
         document.getElementById('uploadLogoBtn').addEventListener('click', () => {
             const input = document.createElement('input'); input.type='file'; input.accept='image/*';
             input.onchange = async (e) => {
@@ -802,7 +740,7 @@
             input.click();
         });
 
-        // ---- QR Code ----
+        // QR Code
         document.getElementById('generateQrBtn').addEventListener('click', () => {
             if (!cafeData?.id) return;
             const url = BASE_URL + cafeData.id;
@@ -810,9 +748,7 @@
             document.getElementById('qrUrl').textContent = url;
             document.getElementById('copyQrLink').style.display = 'inline-block';
         });
-        document.getElementById('copyQrLink').addEventListener('click', () => {
-            navigator.clipboard.writeText(document.getElementById('qrUrl').textContent); toast('Link copied!');
-        });
+        document.getElementById('copyQrLink').addEventListener('click', () => { navigator.clipboard.writeText(document.getElementById('qrUrl').textContent); toast('Link copied!'); });
         document.getElementById('generateTableQrBtn').addEventListener('click', () => {
             const table = document.getElementById('customTableNumber').value.trim();
             if (!table || isNaN(table) || parseInt(table) < 1) return toast('Enter a valid table number', true);
@@ -822,9 +758,7 @@
             document.getElementById('tableQrUrl').textContent = url;
             document.getElementById('copyTableQrLink').style.display = 'inline-block';
         });
-        document.getElementById('copyTableQrLink').addEventListener('click', () => {
-            navigator.clipboard.writeText(document.getElementById('tableQrUrl').textContent); toast('Table link copied!');
-        });
+        document.getElementById('copyTableQrLink').addEventListener('click', () => { navigator.clipboard.writeText(document.getElementById('tableQrUrl').textContent); toast('Table link copied!'); });
         document.getElementById('downloadAllTableQrsBtn').addEventListener('click', async () => {
             if (!cafeData?.id) return;
             const { jsPDF } = window.jspdf;
@@ -845,7 +779,7 @@
             toast('PDF downloaded!');
         });
 
-        // ---- Orders ----
+        // Orders
         async function loadOrders() {
             if (!cafeData) return;
             const { data } = await _sb.from('orders').select('*').eq('cafe_id', cafeData.id).order('created_at', { ascending: false });
@@ -855,9 +789,7 @@
         function renderOrders() {
             const search = document.getElementById('orderSearch').value.toLowerCase();
             const filtered = allOrders.filter(o => {
-                const statusMatch = (activeOrderTab === 'new' && o.status === 'new') ||
-                                  (activeOrderTab === 'accepted' && o.status === 'accepted') ||
-                                  (activeOrderTab === 'completed' && (o.status === 'delivered' || o.status === 'completed'));
+                const statusMatch = (activeOrderTab === 'new' && o.status === 'new') || (activeOrderTab === 'accepted' && o.status === 'accepted') || (activeOrderTab === 'completed' && (o.status === 'delivered' || o.status === 'completed'));
                 const searchMatch = !search || (o.table_number || '').toString().includes(search) || (o.customer_name || '').toLowerCase().includes(search);
                 return statusMatch && searchMatch;
             });
@@ -913,7 +845,7 @@
             document.getElementById('statRevenue').textContent = '₹' + revenue;
         }
 
-        // ---- Items ----
+        // Items
         async function loadItems() {
             if (!cafeData) return;
             const { data } = await _sb.from('menu_items').select('*').eq('cafe_id', cafeData.id).order('category');
@@ -1043,11 +975,7 @@
                 const data = await res.json();
                 if(data.url) imageUrl = data.url;
             }
-            const itemData = {
-                name, price, category, discount, description: finalDesc,
-                featured: tags.includes('featured'), tags: tags.join(',') || null,
-                allergens, dietary, image_url: imageUrl || null
-            };
+            const itemData = { name, price, category, discount, description: finalDesc, featured: tags.includes('featured'), tags: tags.join(',') || null, allergens, dietary, image_url: imageUrl || null };
             if (id) {
                 const { error } = await _sb.from('menu_items').update(itemData).eq('id', id);
                 if (error) { toast('Update failed: ' + error.message, true); return; }
@@ -1064,16 +992,11 @@
         document.getElementById('submitItemBtn').addEventListener('click', () => saveItem(false));
         document.getElementById('saveAndNextBtn').addEventListener('click', () => saveItem(true));
 
-        // ---- News ----
+        // News
         async function loadNews() {
             if (!cafeData) return;
             const { data } = await _sb.from('news_posts').select('*').eq('cafe_id', cafeData.id).order('created_at', { ascending: false });
-            document.getElementById('newsList').innerHTML = data.length ? data.map(p => `
-                <div class="news-item">
-                    <h4>${p.title}</h4>
-                    <p>${p.body}</p>
-                    <small style="color:var(--muted)">${new Date(p.created_at).toLocaleDateString()}</small>
-                </div>`).join('') : '<p style="color:var(--muted);">No news yet.</p>';
+            document.getElementById('newsList').innerHTML = data.length ? data.map(p => `<div class="news-item"><h4>${p.title}</h4><p>${p.body}</p><small style="color:var(--muted)">${new Date(p.created_at).toLocaleDateString()}</small></div>`).join('') : '<p style="color:var(--muted);">No news yet.</p>';
         }
         document.getElementById('addNewsBtn').addEventListener('click', async () => {
             const title = document.getElementById('newsTitle').value.trim();
@@ -1084,7 +1007,7 @@
             else { document.getElementById('newsTitle').value = ''; document.getElementById('newsBody').value = ''; loadNews(); toast('News posted!'); }
         });
 
-        // ---- AI Scanner (with compression) ----
+        // AI Scanner (with compression) – FIXED
         document.getElementById('takePhotoBtn').addEventListener('click', () => { document.getElementById('aiMenuImageFile').setAttribute('capture','environment'); document.getElementById('aiMenuImageFile').click(); });
         document.getElementById('galleryUploadBtn').addEventListener('click', () => { document.getElementById('aiMenuImageFile').removeAttribute('capture'); document.getElementById('aiMenuImageFile').click(); });
         document.getElementById('aiMenuImageFile').addEventListener('change', function() {
@@ -1170,7 +1093,6 @@
             loadItems(); loadStats();
         });
 
-        // ---- Auto image for items ----
         document.getElementById('autoImageBtn').addEventListener('click', async () => {
             const name = document.getElementById('itemName').value.trim();
             if(!name) return toast('Enter item name');
